@@ -8,6 +8,6 @@ public class Transaction {
     }
 
     public String toString() {
-        return type + " : " + amount;
+        return String.format("%-15s Rs. %.2f", type, amount);
     }
 }
