@@ -3,6 +3,10 @@ import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.geom.GeneralPath;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -17,7 +21,7 @@ public class BankGUI extends JFrame {
     private static final long serialVersionUID = 1L;
 
     // backend system reference
-    private BankSystem bank;
+    BankSystem bank;
 
     // next account number to auto-assign
     private int nextAccountNo = 1001;
@@ -25,6 +29,10 @@ public class BankGUI extends JFrame {
     // card layout and cards container
     private CardLayout cardLayout;
     private JPanel mainContentCards;
+
+    // theme state & current screen
+    private boolean isDarkMode = false;
+    private String currentActiveScreen = "Dashboard";
 
     // sidebar navigation buttons
     private Map<String, NavButton> navButtons = new LinkedHashMap<>();
@@ -36,6 +44,10 @@ public class BankGUI extends JFrame {
     private JLabel dashCurrentCountLabel;
     private DefaultTableModel dashAccountsTableModel;
     private DefaultTableModel dashRecentTxnTableModel;
+    private JPanel dashAccEmptyPanel;
+    private JScrollPane dashAccScrollPane;
+    private JPanel dashTxnEmptyPanel;
+    private JScrollPane dashTxnScrollPane;
 
     // accounts screen table model & summary
     private DefaultTableModel accountsTableModel;
@@ -89,44 +101,49 @@ public class BankGUI extends JFrame {
     private JScrollPane summaryRecentScrollPane;
     private JPanel summaryRecentEmptyPanel;
 
-    // global design system color palette
-    private static final Color BG_CREAM = new Color(247, 245, 240);
-    private static final Color SIDEBAR_DARK = new Color(23, 24, 29);
-    private static final Color SIDEBAR_BORDER = new Color(38, 40, 48);
-    private static final Color SIDEBAR_SECTION_TITLE = new Color(105, 107, 118);
-    private static final Color PRIMARY_CORAL = new Color(255, 120, 94);
-    private static final Color PRIMARY_CORAL_HOVER = new Color(238, 102, 76);
-    private static final Color CARD_WHITE = Color.WHITE;
-    private static final Color CARD_BORDER = new Color(234, 230, 222);
-    private static final Color TEXT_DARK = new Color(36, 37, 42);
-    private static final Color TEXT_MUTED = new Color(119, 119, 127);
-    private static final Color SUCCESS_GREEN = new Color(79, 157, 105);
-    private static final Color DANGER_RED = new Color(217, 92, 92);
-    private static final Color DANGER_RED_HOVER = new Color(196, 75, 75);
+    // =========================================================================
+    // DYNAMIC DESIGN SYSTEM PALETTE (LIGHT & DARK MODE)
+    // =========================================================================
+    private Color bgMain;
+    private Color cardBg;
+    private Color cardBorder;
+    private Color textMain;
+    private Color textMuted;
+    private Color sidebarBg;
+    private Color sidebarBorder;
+    private Color sidebarSectionTitle;
+    private Color inputBg;
+    private Color inputBorder;
+    private Color tableHeaderBg;
+    private Color tableHeaderBorder;
+    private Color tableRowAlt;
+    private Color tableRowHover;
+    private Color secondaryBtnBg;
+    private Color secondaryBtnHover;
+    private Color secondaryBtnBorder;
+    private Color secondaryBtnText;
 
-    // soft pastel accents
-    private static final Color PEACH_START = new Color(255, 245, 239);
-    private static final Color PEACH_END = new Color(255, 233, 222);
-    private static final Color PEACH_BORDER = new Color(250, 218, 204);
+    // Pastel / accent card gradients (Light vs Dark)
+    private Color peachStart, peachEnd, peachBorder;
+    private Color blueStart, blueEnd, blueBorder;
+    private Color lavenderStart, lavenderEnd, lavenderBorder;
+    private Color yellowStart, yellowEnd, yellowBorder;
+    private Color dangerStart, dangerEnd, dangerBorder;
+    private Color successStart, successEnd, successBorder;
 
-    private static final Color BLUE_START = new Color(236, 245, 254);
-    private static final Color BLUE_END = new Color(220, 236, 249);
-    private static final Color BLUE_BORDER = new Color(202, 224, 245);
+    // Static brand accents (consistent in both themes)
+    private static final Color PRIMARY_CORAL = new Color(0xFF, 0x75, 0x5F); // #FF755F
+    private static final Color PRIMARY_CORAL_HOVER = new Color(240, 100, 78);
+    private static final Color SUCCESS_GREEN = new Color(60, 168, 100);
+    private static final Color DANGER_RED = new Color(225, 80, 80);
+    private static final Color DANGER_RED_HOVER = new Color(205, 65, 65);
 
-    private static final Color LAVENDER_START = new Color(246, 240, 254);
-    private static final Color LAVENDER_END = new Color(232, 221, 248);
-    private static final Color LAVENDER_BORDER = new Color(220, 205, 242);
-
-    private static final Color YELLOW_START = new Color(255, 250, 235);
-    private static final Color YELLOW_END = new Color(255, 240, 201);
-    private static final Color YELLOW_BORDER = new Color(246, 226, 175);
-
-    private static final Color DANGER_START = new Color(255, 240, 240);
-    private static final Color DANGER_END = new Color(254, 228, 228);
-    private static final Color DANGER_BORDER = new Color(248, 204, 204);
-
-    // constructor setting up the full application
+    // =========================================================================
+    // CONSTRUCTOR & INITIALIZATION
+    // =========================================================================
     public BankGUI() {
+        applyThemeColors();
+
         // initialize existing backend with starter accounts
         bank = new BankSystem();
         addSampleAccounts();
@@ -137,18 +154,26 @@ public class BankGUI extends JFrame {
         setMinimumSize(new Dimension(1020, 680));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        getContentPane().setBackground(BG_CREAM);
+        getContentPane().setBackground(bgMain);
         setLayout(new BorderLayout());
 
         // build sidebar and main content panels
+        buildUI();
+
+        // initial screen and data refresh
+        showScreen("Dashboard");
+    }
+
+    private void buildUI() {
+        getContentPane().removeAll();
+        navButtons.clear();
+
         JPanel sidebar = createSidebar();
         JPanel contentContainer = createContentContainer();
 
         add(sidebar, BorderLayout.WEST);
         add(contentContainer, BorderLayout.CENTER);
-
-        // initial screen and data refresh
-        showScreen("Dashboard");
+        getContentPane().setBackground(bgMain);
     }
 
     // load sample accounts with initial transaction records
@@ -173,17 +198,136 @@ public class BankGUI extends JFrame {
     }
 
     // =========================================================================
+    // THEME MANAGEMENT (LIGHT & DARK MODE)
+    // =========================================================================
+    private void applyThemeColors() {
+        if (!isDarkMode) {
+            // LIGHT THEME (User-specified palette)
+            bgMain = new Color(0xF7, 0xF5, 0xF1);
+            cardBg = new Color(0xFF, 0xFF, 0xFF);
+            sidebarBg = new Color(0x17, 0x18, 0x1D);
+            cardBorder = new Color(0xE5, 0xE1, 0xDA);
+            textMain = new Color(0x25, 0x26, 0x2B);
+            textMuted = new Color(0x77, 0x79, 0x84);
+            sidebarBorder = new Color(38, 40, 48);
+            sidebarSectionTitle = new Color(105, 107, 118);
+
+            inputBg = Color.WHITE;
+            inputBorder = new Color(226, 222, 214);
+
+            tableHeaderBg = new Color(248, 246, 240);
+            tableHeaderBorder = new Color(230, 226, 218);
+            tableRowAlt = new Color(252, 251, 248);
+            tableRowHover = new Color(255, 243, 238);
+
+            secondaryBtnBg = new Color(246, 243, 238);
+            secondaryBtnHover = new Color(238, 234, 227);
+            secondaryBtnBorder = new Color(228, 224, 216);
+            secondaryBtnText = new Color(37, 38, 43);
+
+            peachStart = new Color(255, 245, 239);
+            peachEnd = new Color(255, 233, 222);
+            peachBorder = new Color(250, 218, 204);
+
+            blueStart = new Color(236, 245, 254);
+            blueEnd = new Color(220, 236, 249);
+            blueBorder = new Color(202, 224, 245);
+
+            lavenderStart = new Color(246, 240, 254);
+            lavenderEnd = new Color(232, 221, 248);
+            lavenderBorder = new Color(220, 205, 242);
+
+            yellowStart = new Color(255, 250, 235);
+            yellowEnd = new Color(255, 240, 201);
+            yellowBorder = new Color(246, 226, 175);
+
+            dangerStart = new Color(255, 240, 240);
+            dangerEnd = new Color(254, 228, 228);
+            dangerBorder = new Color(248, 204, 204);
+
+            successStart = new Color(240, 249, 244);
+            successEnd = new Color(224, 244, 232);
+            successBorder = new Color(196, 234, 210);
+        } else {
+            // DARK THEME (User-specified palette)
+            bgMain = new Color(0x11, 0x12, 0x16);
+            cardBg = new Color(0x1A, 0x1C, 0x22);
+            sidebarBg = new Color(0x0B, 0x0C, 0x10);
+            cardBorder = new Color(0x2B, 0x2D, 0x34);
+            textMain = new Color(0xF4, 0xF4, 0xF5);
+            textMuted = new Color(0x99, 0x9B, 0xA5);
+            sidebarBorder = new Color(26, 28, 36);
+            sidebarSectionTitle = new Color(130, 133, 145);
+
+            inputBg = new Color(26, 28, 34);
+            inputBorder = new Color(48, 52, 62);
+
+            tableHeaderBg = new Color(20, 22, 28);
+            tableHeaderBorder = new Color(43, 45, 52);
+            tableRowAlt = new Color(22, 24, 30);
+            tableRowHover = new Color(38, 32, 34);
+
+            secondaryBtnBg = new Color(32, 35, 43);
+            secondaryBtnHover = new Color(42, 46, 56);
+            secondaryBtnBorder = new Color(50, 54, 66);
+            secondaryBtnText = new Color(244, 244, 245);
+
+            // Refined dark tint accents
+            peachStart = new Color(42, 30, 28);
+            peachEnd = new Color(32, 24, 24);
+            peachBorder = new Color(68, 48, 44);
+
+            blueStart = new Color(24, 34, 48);
+            blueEnd = new Color(18, 26, 38);
+            blueBorder = new Color(40, 58, 80);
+
+            lavenderStart = new Color(34, 28, 48);
+            lavenderEnd = new Color(26, 22, 38);
+            lavenderBorder = new Color(58, 48, 80);
+
+            yellowStart = new Color(42, 36, 24);
+            yellowEnd = new Color(32, 28, 20);
+            yellowBorder = new Color(70, 60, 40);
+
+            dangerStart = new Color(46, 24, 24);
+            dangerEnd = new Color(34, 18, 18);
+            dangerBorder = new Color(80, 40, 40);
+
+            successStart = new Color(22, 38, 28);
+            successEnd = new Color(16, 28, 22);
+            successBorder = new Color(36, 68, 48);
+        }
+
+        UIManager.put("OptionPane.background", cardBg);
+        UIManager.put("Panel.background", cardBg);
+        UIManager.put("OptionPane.messageForeground", textMain);
+    }
+
+    public void setTheme(boolean dark) {
+        if (this.isDarkMode == dark) return;
+        this.isDarkMode = dark;
+        applyThemeColors();
+
+        String active = currentActiveScreen != null ? currentActiveScreen : "Dashboard";
+        buildUI();
+        revalidate();
+        repaint();
+
+        showScreen(active);
+    }
+
+    // =========================================================================
     // SIDEBAR NAVIGATION PANEL (CONSISTENT ACROSS ALL PAGES)
     // =========================================================================
     private JPanel createSidebar() {
         JPanel outer = new JPanel(new BorderLayout());
-        outer.setBackground(BG_CREAM);
+        outer.setBackground(bgMain);
         outer.setBorder(new EmptyBorder(16, 16, 16, 8));
 
-        RoundedCard sidebarCard = new RoundedCard(24, SIDEBAR_DARK, SIDEBAR_BORDER);
-        sidebarCard.setLayout(new BorderLayout(0, 16));
+        RoundedCard sidebarCard = new RoundedCard(24, sidebarBg, sidebarBorder);
+        sidebarCard.setLayout(new BorderLayout(0, 14));
         sidebarCard.setPreferredSize(new Dimension(230, 0));
-        sidebarCard.setBorder(new EmptyBorder(24, 16, 20, 16));
+        sidebarCard.setBorder(new EmptyBorder(22, 16, 18, 16));
 
         // brand header
         JPanel brandPanel = new JPanel(new BorderLayout(10, 0));
@@ -199,7 +343,7 @@ public class BankGUI extends JFrame {
 
         JLabel brandSubtitle = new JLabel("MANAGEMENT SYSTEM");
         brandSubtitle.setFont(new Font("Segoe UI", Font.BOLD, 9));
-        brandSubtitle.setForeground(SIDEBAR_SECTION_TITLE);
+        brandSubtitle.setForeground(sidebarSectionTitle);
 
         JPanel titleStack = new JPanel(new GridLayout(2, 1, 0, 1));
         titleStack.setOpaque(false);
@@ -220,7 +364,7 @@ public class BankGUI extends JFrame {
         addNavItem(navMenuPanel, "Dashboard", "⊞", "Dashboard");
         addNavItem(navMenuPanel, "Accounts", "👥", "Accounts");
 
-        navMenuPanel.add(Box.createRigidArea(new Dimension(0, 14)));
+        addSidebarSeparator(navMenuPanel);
 
         // group 2: operations
         addSidebarSection(navMenuPanel, "OPERATIONS");
@@ -229,7 +373,7 @@ public class BankGUI extends JFrame {
         addNavItem(navMenuPanel, "Withdraw", "↑", "Withdraw");
         addNavItem(navMenuPanel, "Transactions", "📄", "Transactions");
 
-        navMenuPanel.add(Box.createRigidArea(new Dimension(0, 14)));
+        addSidebarSeparator(navMenuPanel);
 
         // group 3: management
         addSidebarSection(navMenuPanel, "MANAGEMENT");
@@ -245,24 +389,88 @@ public class BankGUI extends JFrame {
         menuScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         sidebarCard.add(menuScroll, BorderLayout.CENTER);
 
-        // footer
+        // footer with Theme Toggle & Version text
+        JPanel footerBox = new JPanel();
+        footerBox.setOpaque(false);
+        footerBox.setLayout(new BoxLayout(footerBox, BoxLayout.Y_AXIS));
+
+        JPanel themeToggle = createThemeToggle();
+        themeToggle.setAlignmentX(Component.CENTER_ALIGNMENT);
+        footerBox.add(themeToggle);
+        footerBox.add(Box.createRigidArea(new Dimension(0, 12)));
+
         JLabel footerLabel = new JLabel("FinBank Desktop • v1.2");
         footerLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        footerLabel.setForeground(SIDEBAR_SECTION_TITLE);
-        footerLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        sidebarCard.add(footerLabel, BorderLayout.SOUTH);
+        footerLabel.setForeground(sidebarSectionTitle);
+        footerLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        footerBox.add(footerLabel);
+
+        sidebarCard.add(footerBox, BorderLayout.SOUTH);
 
         outer.add(sidebarCard, BorderLayout.CENTER);
         return outer;
     }
 
+    private JPanel createThemeToggle() {
+        RoundedCard toggleCard = new RoundedCard(16, isDarkMode ? new Color(18, 20, 26) : new Color(30, 32, 40), isDarkMode ? new Color(38, 42, 54) : new Color(48, 50, 60));
+        toggleCard.setLayout(new GridLayout(1, 2, 4, 0));
+        toggleCard.setPreferredSize(new Dimension(198, 34));
+        toggleCard.setMaximumSize(new Dimension(198, 34));
+        toggleCard.setBorder(new EmptyBorder(3, 3, 3, 3));
+
+        JButton lightBtn = new JButton("☀ Light");
+        lightBtn.setFont(new Font("Segoe UI", isDarkMode ? Font.PLAIN : Font.BOLD, 12));
+        lightBtn.setFocusPainted(false);
+        lightBtn.setBorderPainted(false);
+        lightBtn.setContentAreaFilled(false);
+        lightBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        JButton darkBtn = new JButton("◐ Dark");
+        darkBtn.setFont(new Font("Segoe UI", isDarkMode ? Font.BOLD : Font.PLAIN, 12));
+        darkBtn.setFocusPainted(false);
+        darkBtn.setBorderPainted(false);
+        darkBtn.setContentAreaFilled(false);
+        darkBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        if (!isDarkMode) {
+            lightBtn.setOpaque(true);
+            lightBtn.setBackground(Color.WHITE);
+            lightBtn.setForeground(new Color(25, 26, 30));
+            darkBtn.setOpaque(false);
+            darkBtn.setForeground(new Color(145, 148, 160));
+        } else {
+            lightBtn.setOpaque(false);
+            lightBtn.setForeground(new Color(145, 148, 160));
+            darkBtn.setOpaque(true);
+            darkBtn.setBackground(new Color(42, 45, 56));
+            darkBtn.setForeground(Color.WHITE);
+        }
+
+        lightBtn.addActionListener(e -> setTheme(false));
+        darkBtn.addActionListener(e -> setTheme(true));
+
+        toggleCard.add(lightBtn);
+        toggleCard.add(darkBtn);
+        return toggleCard;
+    }
+
     private void addSidebarSection(JPanel parent, String title) {
         JLabel sectionLabel = new JLabel(title);
         sectionLabel.setFont(new Font("Segoe UI", Font.BOLD, 10));
-        sectionLabel.setForeground(SIDEBAR_SECTION_TITLE);
+        sectionLabel.setForeground(sidebarSectionTitle);
         sectionLabel.setBorder(new EmptyBorder(4, 12, 6, 0));
         sectionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         parent.add(sectionLabel);
+    }
+
+    private void addSidebarSeparator(JPanel parent) {
+        parent.add(Box.createRigidArea(new Dimension(0, 8)));
+        JSeparator sep = new JSeparator(SwingConstants.HORIZONTAL);
+        sep.setMaximumSize(new Dimension(Integer.MAX_VALUE, 1));
+        sep.setForeground(sidebarBorder);
+        sep.setBackground(sidebarBorder);
+        parent.add(sep);
+        parent.add(Box.createRigidArea(new Dimension(0, 8)));
     }
 
     private void addNavItem(JPanel parent, String label, String icon, String screenKey) {
@@ -279,7 +487,7 @@ public class BankGUI extends JFrame {
     // create card-layout main content wrapper
     private JPanel createContentContainer() {
         JPanel outer = new JPanel(new BorderLayout());
-        outer.setBackground(BG_CREAM);
+        outer.setBackground(bgMain);
         outer.setBorder(new EmptyBorder(16, 8, 16, 16));
 
         cardLayout = new CardLayout();
@@ -304,6 +512,7 @@ public class BankGUI extends JFrame {
 
     // switch active card and update navigation highlight
     public void showScreen(String name) {
+        currentActiveScreen = name;
         cardLayout.show(mainContentCards, name);
 
         // highlight active nav button
@@ -315,17 +524,17 @@ public class BankGUI extends JFrame {
     }
 
     // =========================================================================
-    // 1. DASHBOARD SCREEN
+    // 1. DASHBOARD SCREEN (WITH PERSONALITY & CONTEXTUAL HEADER)
     // =========================================================================
     private JPanel createDashboardPanel() {
-        JPanel panel = new JPanel(new BorderLayout(0, 16));
+        JPanel panel = new JPanel(new BorderLayout(0, 14));
         panel.setOpaque(false);
 
         // top page header
         JPanel headerPanel = createPageHeader(
             "Finance Management Dashboard",
-            "Real-time summary of bank accounts and recent activity.",
-            "● Live System"
+            "Real-time overview of customer portfolios and registry activity.",
+            null
         );
         panel.add(headerPanel, BorderLayout.NORTH);
 
@@ -334,45 +543,50 @@ public class BankGUI extends JFrame {
         dashboardContent.setOpaque(false);
         dashboardContent.setLayout(new BoxLayout(dashboardContent, BoxLayout.Y_AXIS));
 
-        // 1. row of 4 pastel stat cards
+        // Contextual greeting header banner with current date and live system badge
+        JPanel contextBanner = createContextualHeader();
+        dashboardContent.add(contextBanner);
+        dashboardContent.add(Box.createRigidArea(new Dimension(0, 14)));
+
+        // 1. row of 4 pastel stat cards with icons and sparklines
         JPanel statsRow = new JPanel(new GridLayout(1, 4, 14, 0));
         statsRow.setOpaque(false);
         statsRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 115));
         statsRow.setPreferredSize(new Dimension(860, 115));
 
         dashTotalBalanceLabel = new JLabel("Rs. 0.00");
-        statsRow.add(createStatCard("Total Balance", dashTotalBalanceLabel, "Across all active accounts", PEACH_START, PEACH_END, PEACH_BORDER));
+        statsRow.add(createStatCard("Total Balance", dashTotalBalanceLabel, "Across all active accounts", peachStart, peachEnd, peachBorder, "💳", 0));
 
         dashTotalAccountsLabel = new JLabel("0");
-        statsRow.add(createStatCard("Total Accounts", dashTotalAccountsLabel, "Active customer accounts", BLUE_START, BLUE_END, BLUE_BORDER));
+        statsRow.add(createStatCard("Total Accounts", dashTotalAccountsLabel, "Active customer accounts", blueStart, blueEnd, blueBorder, "👥", 1));
 
         dashSavingsCountLabel = new JLabel("0");
-        statsRow.add(createStatCard("Savings Accounts", dashSavingsCountLabel, "Retail savings portfolio", LAVENDER_START, LAVENDER_END, LAVENDER_BORDER));
+        statsRow.add(createStatCard("Savings Accounts", dashSavingsCountLabel, "Retail savings portfolio", lavenderStart, lavenderEnd, lavenderBorder, "🛡", 2));
 
         dashCurrentCountLabel = new JLabel("0");
-        statsRow.add(createStatCard("Current Accounts", dashCurrentCountLabel, "Commercial portfolio", YELLOW_START, YELLOW_END, YELLOW_BORDER));
+        statsRow.add(createStatCard("Current Accounts", dashCurrentCountLabel, "Commercial portfolio", yellowStart, yellowEnd, yellowBorder, "🏛", 3));
 
         dashboardContent.add(statsRow);
-        dashboardContent.add(Box.createRigidArea(new Dimension(0, 16)));
+        dashboardContent.add(Box.createRigidArea(new Dimension(0, 14)));
 
         // 2. middle row: account overview & recent transactions
         JPanel middleRow = new JPanel(new GridLayout(1, 2, 16, 0));
         middleRow.setOpaque(false);
-        middleRow.setPreferredSize(new Dimension(860, 290));
-        middleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 310));
+        middleRow.setPreferredSize(new Dimension(860, 275));
+        middleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 290));
 
         // left card: account overview preview
-        RoundedCard accountsCard = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
+        RoundedCard accountsCard = new RoundedCard(22, cardBg, cardBorder);
         accountsCard.setLayout(new BorderLayout(0, 12));
-        accountsCard.setBorder(new EmptyBorder(18, 20, 18, 20));
+        accountsCard.setBorder(new EmptyBorder(16, 20, 16, 20));
 
         JPanel accCardHeader = new JPanel(new BorderLayout());
         accCardHeader.setOpaque(false);
         JLabel accTitle = new JLabel("Account Overview");
         accTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        accTitle.setForeground(TEXT_DARK);
+        accTitle.setForeground(textMain);
 
-        ModernButton viewAllBtn = new ModernButton("View All", new Color(245, 242, 235), new Color(236, 232, 224), TEXT_DARK, 12);
+        ModernButton viewAllBtn = new ModernButton("View All", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 12);
         viewAllBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
         viewAllBtn.addActionListener(e -> showScreen("Accounts"));
 
@@ -387,23 +601,33 @@ public class BankGUI extends JFrame {
         };
         JTable dashAccTable = new JTable(dashAccountsTableModel);
         styleTable(dashAccTable);
-        JScrollPane dashAccScroll = new JScrollPane(dashAccTable);
-        dashAccScroll.setBorder(BorderFactory.createEmptyBorder());
-        dashAccScroll.getViewport().setBackground(CARD_WHITE);
-        accountsCard.add(dashAccScroll, BorderLayout.CENTER);
+        dashAccTable.getColumnModel().getColumn(2).setCellRenderer(new AccountTypeBadgeRenderer());
+
+        dashAccScrollPane = new JScrollPane(dashAccTable);
+        dashAccScrollPane.setBorder(BorderFactory.createEmptyBorder());
+        dashAccScrollPane.getViewport().setBackground(cardBg);
+
+        dashAccEmptyPanel = createEmptyState("📄", "No accounts yet", "Add a new account to see it here.");
+        dashAccEmptyPanel.setVisible(false);
+
+        JPanel accCenterWrapper = new JPanel(new BorderLayout());
+        accCenterWrapper.setOpaque(false);
+        accCenterWrapper.add(dashAccScrollPane, BorderLayout.CENTER);
+        accCenterWrapper.add(dashAccEmptyPanel, BorderLayout.SOUTH);
+        accountsCard.add(accCenterWrapper, BorderLayout.CENTER);
 
         // right card: recent transactions
-        RoundedCard recentTxnCard = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
+        RoundedCard recentTxnCard = new RoundedCard(22, cardBg, cardBorder);
         recentTxnCard.setLayout(new BorderLayout(0, 12));
-        recentTxnCard.setBorder(new EmptyBorder(18, 20, 18, 20));
+        recentTxnCard.setBorder(new EmptyBorder(16, 20, 16, 20));
 
         JPanel txnCardHeader = new JPanel(new BorderLayout());
         txnCardHeader.setOpaque(false);
         JLabel txnTitle = new JLabel("Recent Transactions");
         txnTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        txnTitle.setForeground(TEXT_DARK);
+        txnTitle.setForeground(textMain);
 
-        ModernButton fullHistoryBtn = new ModernButton("Full Statement", new Color(245, 242, 235), new Color(236, 232, 224), TEXT_DARK, 12);
+        ModernButton fullHistoryBtn = new ModernButton("Full Statement", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 12);
         fullHistoryBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
         fullHistoryBtn.addActionListener(e -> showScreen("Transactions"));
 
@@ -421,67 +645,127 @@ public class BankGUI extends JFrame {
         dashTxnTable.getColumnModel().getColumn(2).setCellRenderer(new TransactionTypeRenderer());
         dashTxnTable.getColumnModel().getColumn(3).setCellRenderer(new AmountColorRenderer());
 
-        JScrollPane dashTxnScroll = new JScrollPane(dashTxnTable);
-        dashTxnScroll.setBorder(BorderFactory.createEmptyBorder());
-        dashTxnScroll.getViewport().setBackground(CARD_WHITE);
-        recentTxnCard.add(dashTxnScroll, BorderLayout.CENTER);
+        dashTxnScrollPane = new JScrollPane(dashTxnTable);
+        dashTxnScrollPane.setBorder(BorderFactory.createEmptyBorder());
+        dashTxnScrollPane.getViewport().setBackground(cardBg);
+
+        dashTxnEmptyPanel = createEmptyState("💳", "No recent activity", "Customer transactions will appear here.");
+        dashTxnEmptyPanel.setVisible(false);
+
+        JPanel txnCenterWrapper = new JPanel(new BorderLayout());
+        txnCenterWrapper.setOpaque(false);
+        txnCenterWrapper.add(dashTxnScrollPane, BorderLayout.CENTER);
+        txnCenterWrapper.add(dashTxnEmptyPanel, BorderLayout.SOUTH);
+        recentTxnCard.add(txnCenterWrapper, BorderLayout.CENTER);
 
         middleRow.add(accountsCard);
         middleRow.add(recentTxnCard);
 
         dashboardContent.add(middleRow);
-        dashboardContent.add(Box.createRigidArea(new Dimension(0, 16)));
+        dashboardContent.add(Box.createRigidArea(new Dimension(0, 14)));
 
         // 3. bottom row: quick actions card
-        RoundedCard quickActionsCard = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
-        quickActionsCard.setLayout(new BorderLayout(0, 14));
-        quickActionsCard.setBorder(new EmptyBorder(18, 20, 18, 20));
-        quickActionsCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
+        RoundedCard quickActionsCard = new RoundedCard(22, cardBg, cardBorder);
+        quickActionsCard.setLayout(new BorderLayout(0, 12));
+        quickActionsCard.setBorder(new EmptyBorder(16, 20, 16, 20));
+        quickActionsCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 105));
 
         JLabel actionsTitle = new JLabel("Quick Banking Actions");
         actionsTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        actionsTitle.setForeground(TEXT_DARK);
+        actionsTitle.setForeground(textMain);
         quickActionsCard.add(actionsTitle, BorderLayout.NORTH);
 
-        JPanel actionsGrid = new JPanel(new FlowLayout(FlowLayout.LEFT, 14, 0));
+        JPanel actionsGrid = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
         actionsGrid.setOpaque(false);
 
-        ModernButton btnNew = new ModernButton("＋ New Account", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 16);
+        ModernButton btnNew = new ModernButton("＋  New Account", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 14);
         btnNew.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btnNew.addActionListener(e -> showScreen("Create Account"));
 
-        ModernButton btnDep = new ModernButton("↓ Deposit Money", new Color(245, 242, 235), new Color(236, 232, 224), TEXT_DARK, 16);
-        btnDep.addActionListener(e -> showScreen("Deposit"));
+        ModernButton btnDeposit = new ModernButton("↓  Deposit Money", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14);
+        btnDeposit.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btnDeposit.addActionListener(e -> showScreen("Deposit"));
 
-        ModernButton btnWith = new ModernButton("↑ Withdraw Money", new Color(245, 242, 235), new Color(236, 232, 224), TEXT_DARK, 16);
-        btnWith.addActionListener(e -> showScreen("Withdraw"));
+        ModernButton btnWithdraw = new ModernButton("↑  Withdraw Money", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14);
+        btnWithdraw.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btnWithdraw.addActionListener(e -> showScreen("Withdraw"));
 
-        ModernButton btnSrch = new ModernButton("🔍 Search Account", new Color(245, 242, 235), new Color(236, 232, 224), TEXT_DARK, 16);
-        btnSrch.addActionListener(e -> showScreen("Search"));
+        ModernButton btnSearch = new ModernButton("🔍  Search Account", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14);
+        btnSearch.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btnSearch.addActionListener(e -> showScreen("Search"));
 
-        ModernButton btnSumm = new ModernButton("📊 Bank Summary", new Color(245, 242, 235), new Color(236, 232, 224), TEXT_DARK, 16);
-        btnSumm.addActionListener(e -> showScreen("Bank Summary"));
+        ModernButton btnSummary = new ModernButton("📊  Bank Summary", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14);
+        btnSummary.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btnSummary.addActionListener(e -> showScreen("Bank Summary"));
 
         actionsGrid.add(btnNew);
-        actionsGrid.add(btnDep);
-        actionsGrid.add(btnWith);
-        actionsGrid.add(btnSrch);
-        actionsGrid.add(btnSumm);
+        actionsGrid.add(btnDeposit);
+        actionsGrid.add(btnWithdraw);
+        actionsGrid.add(btnSearch);
+        actionsGrid.add(btnSummary);
 
         quickActionsCard.add(actionsGrid, BorderLayout.CENTER);
         dashboardContent.add(quickActionsCard);
 
-        JScrollPane scrollPane = new JScrollPane(dashboardContent);
-        scrollPane.setOpaque(false);
-        scrollPane.getViewport().setOpaque(false);
-        scrollPane.setBorder(null);
+        JScrollPane dashScroll = new JScrollPane(dashboardContent);
+        dashScroll.setOpaque(false);
+        dashScroll.getViewport().setOpaque(false);
+        dashScroll.setBorder(null);
+        dashScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
-        panel.add(scrollPane, BorderLayout.CENTER);
+        panel.add(dashScroll, BorderLayout.CENTER);
         return panel;
     }
 
+    private JPanel createContextualHeader() {
+        JPanel banner = new RoundedCard(18, cardBg, cardBorder);
+        banner.setLayout(new BorderLayout(16, 0));
+        banner.setBorder(new EmptyBorder(12, 18, 12, 18));
+        banner.setMaximumSize(new Dimension(Integer.MAX_VALUE, 58));
+        banner.setPreferredSize(new Dimension(860, 58));
+
+        int hour = LocalTime.now().getHour();
+        String greeting = (hour < 12) ? "Good morning" : (hour < 17) ? "Good afternoon" : "Good evening";
+
+        JPanel leftStack = new JPanel(new GridLayout(2, 1, 0, 2));
+        leftStack.setOpaque(false);
+
+        JLabel greetLabel = new JLabel(greeting + ", welcome to FinBank");
+        greetLabel.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        greetLabel.setForeground(textMain);
+
+        JLabel subLabel = new JLabel("Here's your current banking overview and transaction pulse.");
+        subLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        subLabel.setForeground(textMuted);
+
+        leftStack.add(greetLabel);
+        leftStack.add(subLabel);
+
+        JPanel rightStack = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 4));
+        rightStack.setOpaque(false);
+
+        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy"));
+        JLabel dateLabel = new JLabel(dateStr);
+        dateLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        dateLabel.setForeground(textMuted);
+
+        JPanel statusBadge = new RoundedCard(12, isDarkMode ? new Color(20, 42, 28) : new Color(236, 248, 240), isDarkMode ? new Color(34, 76, 48) : new Color(195, 235, 206));
+        statusBadge.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 4));
+        JLabel statusText = new JLabel("● Live System");
+        statusText.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        statusText.setForeground(SUCCESS_GREEN);
+        statusBadge.add(statusText);
+
+        rightStack.add(dateLabel);
+        rightStack.add(statusBadge);
+
+        banner.add(leftStack, BorderLayout.WEST);
+        banner.add(rightStack, BorderLayout.EAST);
+        return banner;
+    }
+
     // =========================================================================
-    // 2. ACCOUNTS SCREEN (ALL ACCOUNTS TABLE)
+    // 2. ACCOUNTS SCREEN (WITH SUMMARY BADGE & REFINED BADGES)
     // =========================================================================
     private JPanel createAccountsPanel() {
         JPanel panel = new JPanel(new BorderLayout(0, 16));
@@ -496,7 +780,7 @@ public class BankGUI extends JFrame {
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         actions.setOpaque(false);
 
-        ModernButton refreshBtn = new ModernButton("↻ Refresh List", new Color(245, 242, 235), new Color(236, 232, 224), TEXT_DARK, 14);
+        ModernButton refreshBtn = new ModernButton("↻ Refresh List", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14);
         refreshBtn.addActionListener(e -> refreshAccountsTable());
 
         ModernButton createBtn = new ModernButton("＋ New Account", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 14);
@@ -510,14 +794,14 @@ public class BankGUI extends JFrame {
         panel.add(headerPanel, BorderLayout.NORTH);
 
         // full card for table
-        RoundedCard card = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
+        RoundedCard card = new RoundedCard(22, cardBg, cardBorder);
         card.setLayout(new BorderLayout(0, 14));
         card.setBorder(new EmptyBorder(18, 20, 18, 20));
 
         // summary bar inside card
         accountsSummaryLabel = new JLabel("Total Accounts: 0 | Active Portfolio");
         accountsSummaryLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        accountsSummaryLabel.setForeground(TEXT_MUTED);
+        accountsSummaryLabel.setForeground(textMuted);
         card.add(accountsSummaryLabel, BorderLayout.NORTH);
 
         String[] columns = {"Account No.", "Customer Name", "Phone", "Account Type", "Balance (Rs.)"};
@@ -532,7 +816,7 @@ public class BankGUI extends JFrame {
 
         JScrollPane scroll = new JScrollPane(table);
         scroll.setBorder(BorderFactory.createEmptyBorder());
-        scroll.getViewport().setBackground(CARD_WHITE);
+        scroll.getViewport().setBackground(cardBg);
 
         card.add(scroll, BorderLayout.CENTER);
         panel.add(card, BorderLayout.CENTER);
@@ -553,7 +837,7 @@ public class BankGUI extends JFrame {
         columnsPanel.setOpaque(false);
 
         // LEFT COLUMN: Visual & Information Card
-        GradientCard leftCard = new GradientCard(22, PEACH_START, PEACH_END, PEACH_BORDER);
+        GradientCard leftCard = new GradientCard(22, peachStart, peachEnd, peachBorder);
         leftCard.setLayout(new BorderLayout(0, 16));
         leftCard.setBorder(new EmptyBorder(26, 26, 26, 26));
 
@@ -561,7 +845,7 @@ public class BankGUI extends JFrame {
         leftTopPanel.setOpaque(false);
         leftTopPanel.setLayout(new BoxLayout(leftTopPanel, BoxLayout.Y_AXIS));
 
-        JPanel badgePill = new RoundedCard(12, new Color(255, 230, 220), new Color(250, 195, 175));
+        JPanel badgePill = new RoundedCard(12, isDarkMode ? new Color(55, 35, 30) : new Color(255, 230, 220), isDarkMode ? new Color(85, 45, 40) : new Color(250, 195, 175));
         badgePill.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 4));
         badgePill.setMaximumSize(new Dimension(135, 26));
         badgePill.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -570,198 +854,170 @@ public class BankGUI extends JFrame {
         badgeLbl.setForeground(PRIMARY_CORAL);
         badgePill.add(badgeLbl);
 
-        JLabel leftTitle = new JLabel("Open a FinBank Account");
+        JLabel leftTitle = new JLabel("Open a New Account");
         leftTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        leftTitle.setForeground(TEXT_DARK);
+        leftTitle.setForeground(textMain);
         leftTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel leftDesc = new JLabel("<html>Open a new FinBank customer account with instant automated ledger registration.</html>");
+        JLabel leftDesc = new JLabel("<html>Register customer details, assign account category, and initialize secure banking ledger records with instant activation.</html>");
         leftDesc.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        leftDesc.setForeground(new Color(110, 105, 102));
+        leftDesc.setForeground(textMuted);
         leftDesc.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         leftTopPanel.add(badgePill);
-        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 12)));
         leftTopPanel.add(leftTitle);
-        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 6)));
+        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 8)));
         leftTopPanel.add(leftDesc);
 
         leftCard.add(leftTopPanel, BorderLayout.NORTH);
 
-        // center: decorative bank card visual and features list
-        JPanel leftCenterPanel = new JPanel();
-        leftCenterPanel.setOpaque(false);
-        leftCenterPanel.setLayout(new BoxLayout(leftCenterPanel, BoxLayout.Y_AXIS));
-
         decorativeCard = new DecorativeFinBankCard();
-        decorativeCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+        leftCard.add(decorativeCard, BorderLayout.CENTER);
 
-        leftCenterPanel.add(decorativeCard);
-        leftCenterPanel.add(Box.createRigidArea(new Dimension(0, 18)));
-
-        JPanel featuresPanel = new JPanel(new GridLayout(3, 1, 0, 10));
-        featuresPanel.setOpaque(false);
-        featuresPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        featuresPanel.add(createFeatureRow("Instant Account Allocation", "Sequential account number auto-assigned immediately."));
-        featuresPanel.add(createFeatureRow("Multi-Tier Portfolios", "Full support for Retail Savings and Commercial Current."));
-        featuresPanel.add(createFeatureRow("Audited Ledger Trail", "Opening deposit automatically recorded in linked statement."));
-
-        leftCenterPanel.add(featuresPanel);
-        leftCard.add(leftCenterPanel, BorderLayout.CENTER);
-
-        JPanel leftBottomPanel = new JPanel(new BorderLayout());
+        JPanel leftBottomPanel = new JPanel();
         leftBottomPanel.setOpaque(false);
+        leftBottomPanel.setLayout(new BoxLayout(leftBottomPanel, BoxLayout.Y_AXIS));
 
-        RoundedCard nextNoBadge = new RoundedCard(14, CARD_WHITE, new Color(245, 215, 202));
-        nextNoBadge.setLayout(new FlowLayout(FlowLayout.LEFT, 14, 8));
         createAccNextNoLabel = new JLabel("Next Account Number: #" + nextAccountNo);
-        createAccNextNoLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        createAccNextNoLabel.setForeground(PRIMARY_CORAL);
-        nextNoBadge.add(createAccNextNoLabel);
+        createAccNextNoLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        createAccNextNoLabel.setForeground(textMain);
+        createAccNextNoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        leftBottomPanel.add(nextNoBadge, BorderLayout.WEST);
+        JLabel leftTip = new JLabel("Auto-assigned sequentially • Indexed in synchronized HashMap & TreeMap");
+        leftTip.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        leftTip.setForeground(textMuted);
+        leftTip.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        leftBottomPanel.add(createAccNextNoLabel);
+        leftBottomPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        leftBottomPanel.add(leftTip);
+
         leftCard.add(leftBottomPanel, BorderLayout.SOUTH);
 
-        // RIGHT COLUMN: Account Creation Form Card
-        RoundedCard rightCard = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
-        rightCard.setLayout(new BorderLayout(0, 16));
-        rightCard.setBorder(new EmptyBorder(26, 30, 26, 30));
+        // RIGHT COLUMN: Clean Account Form
+        RoundedCard rightCard = new RoundedCard(22, cardBg, cardBorder);
+        rightCard.setLayout(new BorderLayout(0, 14));
+        rightCard.setBorder(new EmptyBorder(26, 28, 26, 28));
 
-        JPanel formHeader = new JPanel(new GridLayout(2, 1, 0, 3));
-        formHeader.setOpaque(false);
+        JPanel formTitleBlock = new JPanel(new GridLayout(2, 1, 0, 3));
+        formTitleBlock.setOpaque(false);
+        JLabel formHeading = new JLabel("Account Details");
+        formHeading.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        formHeading.setForeground(textMain);
+        JLabel formSubheading = new JLabel("Please enter customer information accurately.");
+        formSubheading.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        formSubheading.setForeground(textMuted);
+        formTitleBlock.add(formHeading);
+        formTitleBlock.add(formSubheading);
+        rightCard.add(formTitleBlock, BorderLayout.NORTH);
 
-        JLabel formTitle = new JLabel("Customer Particulars");
-        formTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        formTitle.setForeground(TEXT_DARK);
+        JPanel formFieldsPanel = new JPanel();
+        formFieldsPanel.setOpaque(false);
+        formFieldsPanel.setLayout(new BoxLayout(formFieldsPanel, BoxLayout.Y_AXIS));
 
-        JLabel formSub = new JLabel("Provide customer identity details and the initial deposit.");
-        formSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        formSub.setForeground(TEXT_MUTED);
-
-        formHeader.add(formTitle);
-        formHeader.add(formSub);
-        rightCard.add(formHeader, BorderLayout.NORTH);
-
-        JPanel formFields = new JPanel();
-        formFields.setOpaque(false);
-        formFields.setLayout(new BoxLayout(formFields, BoxLayout.Y_AXIS));
-
-        // 1. Customer Full Name
-        formFields.add(createFormLabel("Customer Full Name *"));
-        formFields.add(Box.createRigidArea(new Dimension(0, 5)));
         ModernTextField nameField = new ModernTextField(20);
-        nameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
-        nameField.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(nameField);
-        formFields.add(Box.createRigidArea(new Dimension(0, 12)));
-
-        // 2. Phone Number
-        formFields.add(createFormLabel("Phone Number *"));
-        formFields.add(Box.createRigidArea(new Dimension(0, 5)));
         ModernTextField phoneField = new ModernTextField(20);
-        phoneField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
-        phoneField.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(phoneField);
-        formFields.add(Box.createRigidArea(new Dimension(0, 12)));
 
-        // 3. Account Type
-        formFields.add(createFormLabel("Account Type *"));
-        formFields.add(Box.createRigidArea(new Dimension(0, 5)));
-        JComboBox<String> typeCombo = new JComboBox<>(bank.accountTypes);
+        String[] accountTypes = {"Savings", "Current"};
+        JComboBox<String> typeCombo = new JComboBox<>(accountTypes);
         typeCombo.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        typeCombo.setBackground(inputBg);
+        typeCombo.setForeground(textMain);
         typeCombo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
-        typeCombo.setPreferredSize(new Dimension(300, 42));
-        typeCombo.setBackground(Color.WHITE);
+        typeCombo.setPreferredSize(new Dimension(200, 42));
         typeCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(typeCombo);
-        formFields.add(Box.createRigidArea(new Dimension(0, 12)));
 
-        // 4. Initial Deposit Amount
-        formFields.add(createFormLabel("Initial Deposit Amount (Rs.) *"));
-        formFields.add(Box.createRigidArea(new Dimension(0, 5)));
         ModernTextField depositField = new ModernTextField(20);
-        depositField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
-        depositField.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(depositField);
-        formFields.add(Box.createRigidArea(new Dimension(0, 18)));
 
-        // 5. Submit Button
-        ModernButton submitBtn = new ModernButton("Create Account", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 16);
-        submitBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        submitBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        submitBtn.setPreferredSize(new Dimension(300, 44));
-        submitBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(submitBtn);
-        formFields.add(Box.createRigidArea(new Dimension(0, 10)));
+        formFieldsPanel.add(createFormLabel("Customer Full Name"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(nameField);
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 12)));
 
-        JLabel statusLabel = new JLabel(" ");
-        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        statusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(statusLabel);
+        formFieldsPanel.add(createFormLabel("Phone Number"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(phoneField);
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 12)));
 
-        rightCard.add(formFields, BorderLayout.CENTER);
+        formFieldsPanel.add(createFormLabel("Account Type"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(typeCombo);
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 12)));
 
-        submitBtn.addActionListener(e -> {
+        formFieldsPanel.add(createFormLabel("Initial Deposit Amount (Rs.)"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(depositField);
+        formFieldsPanel.add(Box.createVerticalGlue());
+
+        rightCard.add(formFieldsPanel, BorderLayout.CENTER);
+
+        // bottom action buttons
+        JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        actionsPanel.setOpaque(false);
+
+        ModernButton cancelBtn = new ModernButton("Cancel", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14);
+        cancelBtn.addActionListener(e -> showScreen("Dashboard"));
+
+        ModernButton createAccountBtn = new ModernButton("Create Account", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 14);
+        createAccountBtn.setPreferredSize(new Dimension(170, 44));
+
+        createAccountBtn.addActionListener(e -> {
             String name = nameField.getText().trim();
             String phone = phoneField.getText().trim();
             String type = (String) typeCombo.getSelectedItem();
             String depStr = depositField.getText().trim();
 
             if (name.isEmpty() || phone.isEmpty() || depStr.isEmpty()) {
-                statusLabel.setForeground(DANGER_RED);
-                statusLabel.setText("Please fill in all fields.");
+                JOptionPane.showMessageDialog(this, "Please fill in all customer fields.", "Validation Error", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
             try {
-                double deposit = Double.parseDouble(depStr);
-                if (deposit < 0) {
-                    statusLabel.setForeground(DANGER_RED);
-                    statusLabel.setText("Initial deposit cannot be negative.");
+                double initialDeposit = Double.parseDouble(depStr);
+                if (initialDeposit < 0) {
+                    JOptionPane.showMessageDialog(this, "Initial deposit cannot be negative.", "Validation Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
-                Customer customer = new Customer(nextAccountNo, name, phone);
-                BankAccount account = new BankAccount(nextAccountNo, customer, type, deposit);
-                if (deposit > 0) {
-                    account.transactions.add(new Transaction("Deposit", deposit));
+                int assignedAccNo = nextAccountNo++;
+                Customer customer = new Customer(assignedAccNo, name, phone);
+                BankAccount newAccount = new BankAccount(assignedAccNo, customer, type, initialDeposit);
+
+                if (initialDeposit > 0) {
+                    newAccount.transactions.add(new Transaction("Deposit", initialDeposit));
                 }
-                bank.addAccount(account);
 
-                statusLabel.setForeground(SUCCESS_GREEN);
-                statusLabel.setText("✓ Account created successfully! Assigned Account No: " + nextAccountNo);
-                JOptionPane.showMessageDialog(this, "Account created successfully!\nAssigned Account Number: " + nextAccountNo, "Success", JOptionPane.INFORMATION_MESSAGE);
+                bank.addAccount(newAccount);
 
-                nextAccountNo++;
+                JOptionPane.showMessageDialog(
+                    this,
+                    String.format("Account Created Successfully!\n\nAccount No: #%d\nCustomer: %s\nType: %s\nInitial Balance: Rs. %,.2f",
+                        assignedAccNo, name, type, initialDeposit),
+                    "Account Activated",
+                    JOptionPane.INFORMATION_MESSAGE
+                );
+
                 nameField.setText("");
                 phoneField.setText("");
                 depositField.setText("");
                 typeCombo.setSelectedIndex(0);
 
-                if (createAccNextNoLabel != null) {
-                    createAccNextNoLabel.setText("Next Account Number: #" + nextAccountNo);
-                }
-                if (decorativeCard != null) {
-                    decorativeCard.repaint();
-                }
-
                 refreshAll();
+                showScreen("Accounts");
             } catch (NumberFormatException ex) {
-                statusLabel.setForeground(DANGER_RED);
-                statusLabel.setText("Please enter a valid numeric deposit amount.");
+                JOptionPane.showMessageDialog(this, "Please enter a valid numeric deposit amount.", "Input Error", JOptionPane.ERROR_MESSAGE);
             }
         });
+
+        actionsPanel.add(cancelBtn);
+        actionsPanel.add(createAccountBtn);
+        rightCard.add(actionsPanel, BorderLayout.SOUTH);
 
         columnsPanel.add(leftCard);
         columnsPanel.add(rightCard);
 
-        JScrollPane scroll = new JScrollPane(columnsPanel);
-        scroll.setOpaque(false);
-        scroll.getViewport().setOpaque(false);
-        scroll.setBorder(null);
-
-        panel.add(scroll, BorderLayout.CENTER);
+        panel.add(columnsPanel, BorderLayout.CENTER);
         return panel;
     }
 
@@ -772,13 +1028,13 @@ public class BankGUI extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(0, 16));
         panel.setOpaque(false);
 
-        panel.add(createHeaderTitleBlock("Deposit Funds", "Add money to an existing customer account."), BorderLayout.NORTH);
+        panel.add(createHeaderTitleBlock("Deposit Funds", "Credit balance instantly to an active customer bank account."), BorderLayout.NORTH);
 
         JPanel columnsPanel = new JPanel(new GridLayout(1, 2, 22, 0));
         columnsPanel.setOpaque(false);
 
-        // LEFT COLUMN: Information & Visual Card
-        GradientCard leftCard = new GradientCard(22, PEACH_START, PEACH_END, PEACH_BORDER);
+        // LEFT COLUMN: Information Card with soft green identity
+        GradientCard leftCard = new GradientCard(22, successStart, successEnd, successBorder);
         leftCard.setLayout(new BorderLayout(0, 16));
         leftCard.setBorder(new EmptyBorder(26, 26, 26, 26));
 
@@ -786,153 +1042,143 @@ public class BankGUI extends JFrame {
         leftTopPanel.setOpaque(false);
         leftTopPanel.setLayout(new BoxLayout(leftTopPanel, BoxLayout.Y_AXIS));
 
-        JPanel badgePill = new RoundedCard(12, new Color(255, 230, 220), new Color(250, 195, 175));
+        JPanel badgePill = new RoundedCard(12, isDarkMode ? new Color(20, 48, 30) : new Color(225, 248, 235), isDarkMode ? new Color(36, 80, 50) : new Color(185, 235, 205));
         badgePill.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 4));
-        badgePill.setMaximumSize(new Dimension(125, 26));
+        badgePill.setMaximumSize(new Dimension(135, 26));
         badgePill.setAlignmentX(Component.LEFT_ALIGNMENT);
-        JLabel badgeLbl = new JLabel("DEPOSIT FUNDS");
+        JLabel badgeLbl = new JLabel("INFLOW OPERATION");
         badgeLbl.setFont(new Font("Segoe UI", Font.BOLD, 10));
-        badgeLbl.setForeground(PRIMARY_CORAL);
+        badgeLbl.setForeground(SUCCESS_GREEN);
         badgePill.add(badgeLbl);
 
-        JLabel leftTitle = new JLabel("Instant Account Inflow");
+        JLabel leftTitle = new JLabel("Deposit Money");
         leftTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        leftTitle.setForeground(TEXT_DARK);
+        leftTitle.setForeground(textMain);
         leftTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel leftDesc = new JLabel("<html>Add money to an existing customer account with immediate balance crediting.</html>");
+        JLabel leftDesc = new JLabel("<html>Funds deposited are immediately credited to the account balance and added to the customer's permanent ledger record.</html>");
         leftDesc.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        leftDesc.setForeground(new Color(110, 105, 102));
+        leftDesc.setForeground(textMuted);
         leftDesc.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         leftTopPanel.add(badgePill);
-        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 12)));
         leftTopPanel.add(leftTitle);
-        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 6)));
+        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 8)));
         leftTopPanel.add(leftDesc);
 
         leftCard.add(leftTopPanel, BorderLayout.NORTH);
 
-        // center: decorative deposit visual + features list
-        JPanel leftCenterPanel = new JPanel();
-        leftCenterPanel.setOpaque(false);
-        leftCenterPanel.setLayout(new BoxLayout(leftCenterPanel, BoxLayout.Y_AXIS));
-
         DecorativeDepositVisual depositVisual = new DecorativeDepositVisual();
-        depositVisual.setAlignmentX(Component.LEFT_ALIGNMENT);
-        leftCenterPanel.add(depositVisual);
-        leftCenterPanel.add(Box.createRigidArea(new Dimension(0, 18)));
+        leftCard.add(depositVisual, BorderLayout.CENTER);
 
-        JPanel featuresPanel = new JPanel(new GridLayout(3, 1, 0, 10));
-        featuresPanel.setOpaque(false);
-        featuresPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        featuresPanel.add(createFeatureRow("Real-Time Balance Update", "Funds reflect immediately across customer balance and totals."));
-        featuresPanel.add(createFeatureRow("Immutable Audit Trail", "Deposits append automatically to the account statement."));
-        featuresPanel.add(createFeatureRow("Safe Verification", "Account existence verified prior to balance increment."));
-
-        leftCenterPanel.add(featuresPanel);
-        leftCard.add(leftCenterPanel, BorderLayout.CENTER);
-
-        // bottom tip
-        JPanel leftBottomPanel = new JPanel(new BorderLayout());
+        JPanel leftBottomPanel = new JPanel();
         leftBottomPanel.setOpaque(false);
-        RoundedCard tipBadge = new RoundedCard(14, CARD_WHITE, new Color(245, 215, 202));
-        tipBadge.setLayout(new FlowLayout(FlowLayout.LEFT, 14, 8));
-        JLabel tipLbl = new JLabel("✓ Minimum valid deposit amount: Rs. 1.00");
-        tipLbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        tipLbl.setForeground(SUCCESS_GREEN);
-        tipBadge.add(tipLbl);
-        leftBottomPanel.add(tipBadge, BorderLayout.WEST);
+        leftBottomPanel.setLayout(new BoxLayout(leftBottomPanel, BoxLayout.Y_AXIS));
+
+        JLabel infoTitle = new JLabel("Verified Deposit Handling");
+        infoTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        infoTitle.setForeground(textMain);
+        infoTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel infoDesc = new JLabel("Instant reflection across Dashboard and Bank Summary metrics.");
+        infoDesc.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        infoDesc.setForeground(textMuted);
+        infoDesc.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        leftBottomPanel.add(infoTitle);
+        leftBottomPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        leftBottomPanel.add(infoDesc);
         leftCard.add(leftBottomPanel, BorderLayout.SOUTH);
 
-        // RIGHT COLUMN: White Form Card
-        RoundedCard rightCard = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
-        rightCard.setLayout(new BorderLayout(0, 16));
-        rightCard.setBorder(new EmptyBorder(26, 30, 26, 30));
+        // RIGHT COLUMN: Form Card
+        RoundedCard rightCard = new RoundedCard(22, cardBg, cardBorder);
+        rightCard.setLayout(new BorderLayout(0, 14));
+        rightCard.setBorder(new EmptyBorder(26, 28, 26, 28));
 
-        JPanel formHeader = new JPanel(new GridLayout(2, 1, 0, 3));
-        formHeader.setOpaque(false);
+        JPanel formTitleBlock = new JPanel(new GridLayout(2, 1, 0, 3));
+        formTitleBlock.setOpaque(false);
+        JLabel formHeading = new JLabel("Deposit Transaction");
+        formHeading.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        formHeading.setForeground(textMain);
+        JLabel formSubheading = new JLabel("Enter the recipient account and transaction amount.");
+        formSubheading.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        formSubheading.setForeground(textMuted);
+        formTitleBlock.add(formHeading);
+        formTitleBlock.add(formSubheading);
+        rightCard.add(formTitleBlock, BorderLayout.NORTH);
 
-        JLabel formTitle = new JLabel("Deposit Particulars");
-        formTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        formTitle.setForeground(TEXT_DARK);
+        JPanel formFieldsPanel = new JPanel();
+        formFieldsPanel.setOpaque(false);
+        formFieldsPanel.setLayout(new BoxLayout(formFieldsPanel, BoxLayout.Y_AXIS));
 
-        JLabel formSub = new JLabel("Specify target account number and amount to deposit.");
-        formSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        formSub.setForeground(TEXT_MUTED);
-
-        formHeader.add(formTitle);
-        formHeader.add(formSub);
-        rightCard.add(formHeader, BorderLayout.NORTH);
-
-        JPanel formFields = new JPanel();
-        formFields.setOpaque(false);
-        formFields.setLayout(new BoxLayout(formFields, BoxLayout.Y_AXIS));
-
-        formFields.add(createFormLabel("Account Number *"));
-        formFields.add(Box.createRigidArea(new Dimension(0, 5)));
         ModernTextField accNoField = new ModernTextField(20);
-        accNoField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
-        accNoField.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(accNoField);
-        formFields.add(Box.createRigidArea(new Dimension(0, 16)));
-
-        formFields.add(createFormLabel("Deposit Amount (Rs.) *"));
-        formFields.add(Box.createRigidArea(new Dimension(0, 5)));
         ModernTextField amountField = new ModernTextField(20);
-        amountField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
-        amountField.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(amountField);
-        formFields.add(Box.createRigidArea(new Dimension(0, 22)));
 
-        ModernButton depositBtn = new ModernButton("Deposit Money", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 16);
-        depositBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        depositBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        depositBtn.setPreferredSize(new Dimension(300, 44));
-        depositBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(depositBtn);
-        formFields.add(Box.createRigidArea(new Dimension(0, 12)));
+        formFieldsPanel.add(createFormLabel("Account Number"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(accNoField);
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 16)));
 
-        JLabel statusLabel = new JLabel(" ");
-        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        statusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(statusLabel);
+        formFieldsPanel.add(createFormLabel("Deposit Amount (Rs.)"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(amountField);
+        formFieldsPanel.add(Box.createVerticalGlue());
 
-        rightCard.add(formFields, BorderLayout.CENTER);
+        rightCard.add(formFieldsPanel, BorderLayout.CENTER);
+
+        JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        actionsPanel.setOpaque(false);
+
+        ModernButton cancelBtn = new ModernButton("Cancel", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14);
+        cancelBtn.addActionListener(e -> showScreen("Dashboard"));
+
+        ModernButton depositBtn = new ModernButton("Confirm Deposit", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 14);
+        depositBtn.setPreferredSize(new Dimension(170, 44));
 
         depositBtn.addActionListener(e -> {
             try {
                 int accNo = Integer.parseInt(accNoField.getText().trim());
                 double amount = Double.parseDouble(amountField.getText().trim());
 
-                boolean success = bank.deposit(accNo, amount);
-                if (success) {
-                    BankAccount acc = bank.search(accNo);
-                    statusLabel.setForeground(SUCCESS_GREEN);
-                    statusLabel.setText(String.format("✓ Deposit of Rs. %,.2f successful. New Balance: Rs. %,.2f", amount, acc.balance));
-                    accNoField.setText("");
-                    amountField.setText("");
-                    refreshAll();
-                } else {
-                    statusLabel.setForeground(DANGER_RED);
-                    statusLabel.setText("Deposit failed. Check account number and ensure amount > 0.");
+                if (amount <= 0) {
+                    JOptionPane.showMessageDialog(this, "Deposit amount must be positive.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                    return;
                 }
+
+                BankAccount acc = bank.search(accNo);
+                if (acc == null) {
+                    JOptionPane.showMessageDialog(this, "Account #" + accNo + " does not exist.", "Account Not Found", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                bank.deposit(accNo, amount);
+
+                JOptionPane.showMessageDialog(
+                    this,
+                    String.format("Deposit Successful!\n\nAccount: #%d (%s)\nDeposited: Rs. %,.2f\nUpdated Balance: Rs. %,.2f",
+                        accNo, acc.customer.name, amount, acc.balance),
+                    "Transaction Confirmed",
+                    JOptionPane.INFORMATION_MESSAGE
+                );
+
+                accNoField.setText("");
+                amountField.setText("");
+                refreshAll();
+                showScreen("Transactions");
             } catch (NumberFormatException ex) {
-                statusLabel.setForeground(DANGER_RED);
-                statusLabel.setText("Please enter valid numbers for account number and deposit amount.");
+                JOptionPane.showMessageDialog(this, "Please enter valid numeric inputs.", "Input Error", JOptionPane.ERROR_MESSAGE);
             }
         });
+
+        actionsPanel.add(cancelBtn);
+        actionsPanel.add(depositBtn);
+        rightCard.add(actionsPanel, BorderLayout.SOUTH);
 
         columnsPanel.add(leftCard);
         columnsPanel.add(rightCard);
 
-        JScrollPane scroll = new JScrollPane(columnsPanel);
-        scroll.setOpaque(false);
-        scroll.getViewport().setOpaque(false);
-        scroll.setBorder(null);
-
-        panel.add(scroll, BorderLayout.CENTER);
+        panel.add(columnsPanel, BorderLayout.CENTER);
         return panel;
     }
 
@@ -943,13 +1189,13 @@ public class BankGUI extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(0, 16));
         panel.setOpaque(false);
 
-        panel.add(createHeaderTitleBlock("Withdraw Funds", "Safely withdraw funds from an existing account."), BorderLayout.NORTH);
+        panel.add(createHeaderTitleBlock("Withdraw Funds", "Process authorized debit requests from customer accounts."), BorderLayout.NORTH);
 
         JPanel columnsPanel = new JPanel(new GridLayout(1, 2, 22, 0));
         columnsPanel.setOpaque(false);
 
-        // LEFT COLUMN: Information & Visual Card
-        GradientCard leftCard = new GradientCard(22, BLUE_START, BLUE_END, BLUE_BORDER);
+        // LEFT COLUMN: Information Card with soft coral identity
+        GradientCard leftCard = new GradientCard(22, peachStart, peachEnd, peachBorder);
         leftCard.setLayout(new BorderLayout(0, 16));
         leftCard.setBorder(new EmptyBorder(26, 26, 26, 26));
 
@@ -957,153 +1203,153 @@ public class BankGUI extends JFrame {
         leftTopPanel.setOpaque(false);
         leftTopPanel.setLayout(new BoxLayout(leftTopPanel, BoxLayout.Y_AXIS));
 
-        JPanel badgePill = new RoundedCard(12, new Color(218, 234, 250), new Color(190, 218, 245));
+        JPanel badgePill = new RoundedCard(12, isDarkMode ? new Color(55, 35, 30) : new Color(255, 230, 220), isDarkMode ? new Color(85, 45, 40) : new Color(250, 195, 175));
         badgePill.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 4));
-        badgePill.setMaximumSize(new Dimension(135, 26));
+        badgePill.setMaximumSize(new Dimension(145, 26));
         badgePill.setAlignmentX(Component.LEFT_ALIGNMENT);
-        JLabel badgeLbl = new JLabel("WITHDRAW FUNDS");
+        JLabel badgeLbl = new JLabel("OUTFLOW OPERATION");
         badgeLbl.setFont(new Font("Segoe UI", Font.BOLD, 10));
-        badgeLbl.setForeground(new Color(40, 110, 190));
+        badgeLbl.setForeground(PRIMARY_CORAL);
         badgePill.add(badgeLbl);
 
-        JLabel leftTitle = new JLabel("Secure Fund Payout");
+        JLabel leftTitle = new JLabel("Withdraw Money");
         leftTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        leftTitle.setForeground(TEXT_DARK);
+        leftTitle.setForeground(textMain);
         leftTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel leftDesc = new JLabel("<html>Disburse funds securely with instant balance validation and overdraft protection.</html>");
+        JLabel leftDesc = new JLabel("<html>System verifies sufficient account liquidity before executing disbursement and logging transaction audit events.</html>");
         leftDesc.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        leftDesc.setForeground(new Color(90, 105, 120));
+        leftDesc.setForeground(textMuted);
         leftDesc.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         leftTopPanel.add(badgePill);
-        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 12)));
         leftTopPanel.add(leftTitle);
-        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 6)));
+        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 8)));
         leftTopPanel.add(leftDesc);
 
         leftCard.add(leftTopPanel, BorderLayout.NORTH);
 
-        // center: decorative visual + features list
-        JPanel leftCenterPanel = new JPanel();
-        leftCenterPanel.setOpaque(false);
-        leftCenterPanel.setLayout(new BoxLayout(leftCenterPanel, BoxLayout.Y_AXIS));
-
         DecorativeWithdrawVisual withdrawVisual = new DecorativeWithdrawVisual();
-        withdrawVisual.setAlignmentX(Component.LEFT_ALIGNMENT);
-        leftCenterPanel.add(withdrawVisual);
-        leftCenterPanel.add(Box.createRigidArea(new Dimension(0, 18)));
+        leftCard.add(withdrawVisual, BorderLayout.CENTER);
 
-        JPanel featuresPanel = new JPanel(new GridLayout(3, 1, 0, 10));
-        featuresPanel.setOpaque(false);
-        featuresPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        featuresPanel.add(createFeatureRow("Automated Solvency Check", "Withdrawals exceeding available balance are rejected."));
-        featuresPanel.add(createFeatureRow("Audited Disbursement Log", "Withdrawals are permanently recorded in the ledger."));
-        featuresPanel.add(createFeatureRow("Real-Time Liquidity Sync", "Bank total balance updates simultaneously upon payout."));
-
-        leftCenterPanel.add(featuresPanel);
-        leftCard.add(leftCenterPanel, BorderLayout.CENTER);
-
-        // bottom tip
-        JPanel leftBottomPanel = new JPanel(new BorderLayout());
+        JPanel leftBottomPanel = new JPanel();
         leftBottomPanel.setOpaque(false);
-        RoundedCard tipBadge = new RoundedCard(14, CARD_WHITE, new Color(205, 225, 248));
-        tipBadge.setLayout(new FlowLayout(FlowLayout.LEFT, 14, 8));
-        JLabel tipLbl = new JLabel("✓ Balance cannot drop below zero");
-        tipLbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        tipLbl.setForeground(new Color(40, 110, 190));
-        tipBadge.add(tipLbl);
-        leftBottomPanel.add(tipBadge, BorderLayout.WEST);
+        leftBottomPanel.setLayout(new BoxLayout(leftBottomPanel, BoxLayout.Y_AXIS));
+
+        JLabel infoTitle = new JLabel("Liquidity Guard Active");
+        infoTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        infoTitle.setForeground(textMain);
+        infoTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel infoDesc = new JLabel("Prevents overdrafts and maintains real-time ledger consistency.");
+        infoDesc.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        infoDesc.setForeground(textMuted);
+        infoDesc.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        leftBottomPanel.add(infoTitle);
+        leftBottomPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        leftBottomPanel.add(infoDesc);
         leftCard.add(leftBottomPanel, BorderLayout.SOUTH);
 
-        // RIGHT COLUMN: White Form Card
-        RoundedCard rightCard = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
-        rightCard.setLayout(new BorderLayout(0, 16));
-        rightCard.setBorder(new EmptyBorder(26, 30, 26, 30));
+        // RIGHT COLUMN: Form Card
+        RoundedCard rightCard = new RoundedCard(22, cardBg, cardBorder);
+        rightCard.setLayout(new BorderLayout(0, 14));
+        rightCard.setBorder(new EmptyBorder(26, 28, 26, 28));
 
-        JPanel formHeader = new JPanel(new GridLayout(2, 1, 0, 3));
-        formHeader.setOpaque(false);
+        JPanel formTitleBlock = new JPanel(new GridLayout(2, 1, 0, 3));
+        formTitleBlock.setOpaque(false);
+        JLabel formHeading = new JLabel("Withdrawal Request");
+        formHeading.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        formHeading.setForeground(textMain);
+        JLabel formSubheading = new JLabel("Enter the source account number and withdrawal amount.");
+        formSubheading.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        formSubheading.setForeground(textMuted);
+        formTitleBlock.add(formHeading);
+        formTitleBlock.add(formSubheading);
+        rightCard.add(formTitleBlock, BorderLayout.NORTH);
 
-        JLabel formTitle = new JLabel("Withdrawal Particulars");
-        formTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        formTitle.setForeground(TEXT_DARK);
+        JPanel formFieldsPanel = new JPanel();
+        formFieldsPanel.setOpaque(false);
+        formFieldsPanel.setLayout(new BoxLayout(formFieldsPanel, BoxLayout.Y_AXIS));
 
-        JLabel formSub = new JLabel("Enter target account number and amount to withdraw.");
-        formSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        formSub.setForeground(TEXT_MUTED);
-
-        formHeader.add(formTitle);
-        formHeader.add(formSub);
-        rightCard.add(formHeader, BorderLayout.NORTH);
-
-        JPanel formFields = new JPanel();
-        formFields.setOpaque(false);
-        formFields.setLayout(new BoxLayout(formFields, BoxLayout.Y_AXIS));
-
-        formFields.add(createFormLabel("Account Number *"));
-        formFields.add(Box.createRigidArea(new Dimension(0, 5)));
         ModernTextField accNoField = new ModernTextField(20);
-        accNoField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
-        accNoField.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(accNoField);
-        formFields.add(Box.createRigidArea(new Dimension(0, 16)));
-
-        formFields.add(createFormLabel("Withdrawal Amount (Rs.) *"));
-        formFields.add(Box.createRigidArea(new Dimension(0, 5)));
         ModernTextField amountField = new ModernTextField(20);
-        amountField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
-        amountField.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(amountField);
-        formFields.add(Box.createRigidArea(new Dimension(0, 22)));
 
-        ModernButton withdrawBtn = new ModernButton("Withdraw Money", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 16);
-        withdrawBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        withdrawBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        withdrawBtn.setPreferredSize(new Dimension(300, 44));
-        withdrawBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(withdrawBtn);
-        formFields.add(Box.createRigidArea(new Dimension(0, 12)));
+        formFieldsPanel.add(createFormLabel("Account Number"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(accNoField);
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 16)));
 
-        JLabel statusLabel = new JLabel(" ");
-        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        statusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(statusLabel);
+        formFieldsPanel.add(createFormLabel("Withdrawal Amount (Rs.)"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(amountField);
+        formFieldsPanel.add(Box.createVerticalGlue());
 
-        rightCard.add(formFields, BorderLayout.CENTER);
+        rightCard.add(formFieldsPanel, BorderLayout.CENTER);
+
+        JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        actionsPanel.setOpaque(false);
+
+        ModernButton cancelBtn = new ModernButton("Cancel", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14);
+        cancelBtn.addActionListener(e -> showScreen("Dashboard"));
+
+        ModernButton withdrawBtn = new ModernButton("Confirm Withdrawal", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 14);
+        withdrawBtn.setPreferredSize(new Dimension(180, 44));
 
         withdrawBtn.addActionListener(e -> {
             try {
                 int accNo = Integer.parseInt(accNoField.getText().trim());
                 double amount = Double.parseDouble(amountField.getText().trim());
 
-                boolean success = bank.withdraw(accNo, amount);
-                if (success) {
-                    BankAccount acc = bank.search(accNo);
-                    statusLabel.setForeground(SUCCESS_GREEN);
-                    statusLabel.setText(String.format("✓ Withdrawal of Rs. %,.2f successful. Remaining: Rs. %,.2f", amount, acc.balance));
-                    accNoField.setText("");
-                    amountField.setText("");
-                    refreshAll();
-                } else {
-                    statusLabel.setForeground(DANGER_RED);
-                    statusLabel.setText("Withdrawal failed. Check balance, account number, or ensure amount > 0.");
+                if (amount <= 0) {
+                    JOptionPane.showMessageDialog(this, "Withdrawal amount must be positive.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                    return;
                 }
+
+                BankAccount acc = bank.search(accNo);
+                if (acc == null) {
+                    JOptionPane.showMessageDialog(this, "Account #" + accNo + " does not exist.", "Account Not Found", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                if (acc.balance < amount) {
+                    JOptionPane.showMessageDialog(
+                        this,
+                        String.format("Insufficient Funds!\n\nCurrent Balance: Rs. %,.2f\nRequested: Rs. %,.2f", acc.balance, amount),
+                        "Transaction Denied",
+                        JOptionPane.WARNING_MESSAGE
+                    );
+                    return;
+                }
+
+                bank.withdraw(accNo, amount);
+
+                JOptionPane.showMessageDialog(
+                    this,
+                    String.format("Withdrawal Successful!\n\nAccount: #%d (%s)\nDebited: Rs. %,.2f\nRemaining Balance: Rs. %,.2f",
+                        accNo, acc.customer.name, amount, acc.balance),
+                    "Transaction Confirmed",
+                    JOptionPane.INFORMATION_MESSAGE
+                );
+
+                accNoField.setText("");
+                amountField.setText("");
+                refreshAll();
+                showScreen("Transactions");
             } catch (NumberFormatException ex) {
-                statusLabel.setForeground(DANGER_RED);
-                statusLabel.setText("Please enter valid numbers for account and amount.");
+                JOptionPane.showMessageDialog(this, "Please enter valid numeric inputs.", "Input Error", JOptionPane.ERROR_MESSAGE);
             }
         });
+
+        actionsPanel.add(cancelBtn);
+        actionsPanel.add(withdrawBtn);
+        rightCard.add(actionsPanel, BorderLayout.SOUTH);
 
         columnsPanel.add(leftCard);
         columnsPanel.add(rightCard);
 
-        JScrollPane scroll = new JScrollPane(columnsPanel);
-        scroll.setOpaque(false);
-        scroll.getViewport().setOpaque(false);
-        scroll.setBorder(null);
-
-        panel.add(scroll, BorderLayout.CENTER);
+        panel.add(columnsPanel, BorderLayout.CENTER);
         return panel;
     }
 
@@ -1114,80 +1360,53 @@ public class BankGUI extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(0, 16));
         panel.setOpaque(false);
 
-        panel.add(createHeaderTitleBlock("Search Account", "Find customer account information quickly."), BorderLayout.NORTH);
+        panel.add(createHeaderTitleBlock("Search Customer Account", "Look up account profiles, balances, and customer info."), BorderLayout.NORTH);
 
         JPanel contentContainer = new JPanel();
         contentContainer.setOpaque(false);
         contentContainer.setLayout(new BoxLayout(contentContainer, BoxLayout.Y_AXIS));
 
-        // top search query bar card
-        RoundedCard searchBarCard = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
-        searchBarCard.setLayout(new FlowLayout(FlowLayout.LEFT, 16, 14));
-        searchBarCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 72));
+        // query card
+        RoundedCard queryCard = new RoundedCard(22, cardBg, cardBorder);
+        queryCard.setLayout(new FlowLayout(FlowLayout.LEFT, 16, 16));
+        queryCard.setBorder(new EmptyBorder(6, 16, 6, 16));
+        queryCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 75));
 
         ModernTextField searchField = new ModernTextField(18);
         ModernButton searchBtn = new ModernButton("Search Account", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 14);
 
-        searchBarCard.add(createFormLabel("Enter Account Number:"));
-        searchBarCard.add(searchField);
-        searchBarCard.add(searchBtn);
+        queryCard.add(createFormLabel("Enter Account Number:"));
+        queryCard.add(searchField);
+        queryCard.add(searchBtn);
 
-        contentContainer.add(searchBarCard);
+        contentContainer.add(queryCard);
         contentContainer.add(Box.createRigidArea(new Dimension(0, 16)));
 
-        // account details profile card
-        RoundedCard profileCard = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
-        profileCard.setLayout(new BorderLayout(0, 18));
-        profileCard.setBorder(new EmptyBorder(26, 30, 26, 30));
+        // result display card
+        RoundedCard detailsCard = new RoundedCard(22, cardBg, cardBorder);
+        detailsCard.setLayout(new BorderLayout(0, 16));
+        detailsCard.setBorder(new EmptyBorder(24, 28, 24, 28));
 
-        JPanel profileHeader = new JPanel(new BorderLayout());
-        profileHeader.setOpaque(false);
+        JPanel detailsHeader = new JPanel(new BorderLayout());
+        detailsHeader.setOpaque(false);
+        JLabel detailsTitle = new JLabel("Account Profile Details");
+        detailsTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        detailsTitle.setForeground(textMain);
 
-        JLabel profileTitle = new JLabel("Account Profile Details");
-        profileTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        profileTitle.setForeground(TEXT_DARK);
+        searchStatusLabel = new JLabel("Enter an account number above to begin");
+        searchStatusLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        searchStatusLabel.setForeground(textMuted);
 
-        searchStatusLabel = new JLabel("Enter an account number above to view account details.");
-        searchStatusLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        searchStatusLabel.setForeground(TEXT_MUTED);
+        detailsHeader.add(detailsTitle, BorderLayout.WEST);
+        detailsHeader.add(searchStatusLabel, BorderLayout.EAST);
+        detailsCard.add(detailsHeader, BorderLayout.NORTH);
 
-        profileHeader.add(profileTitle, BorderLayout.WEST);
-        profileHeader.add(searchStatusLabel, BorderLayout.EAST);
-        profileCard.add(profileHeader, BorderLayout.NORTH);
+        // empty state view
+        searchEmptyStatePanel = createEmptyState("🔍", "No account loaded", "Enter an account number above and click Search Account.");
+        searchEmptyStatePanel.setPreferredSize(new Dimension(0, 260));
 
-        // empty state panel
-        searchEmptyStatePanel = new JPanel(new GridBagLayout());
-        searchEmptyStatePanel.setOpaque(false);
-        searchEmptyStatePanel.setPreferredSize(new Dimension(0, 240));
-
-        JPanel emptyContent = new JPanel();
-        emptyContent.setOpaque(false);
-        emptyContent.setLayout(new BoxLayout(emptyContent, BoxLayout.Y_AXIS));
-
-        JLabel searchIcon = new JLabel("🔍");
-        searchIcon.setFont(new Font("Segoe UI", Font.PLAIN, 42));
-        searchIcon.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JLabel emptyText = new JLabel("Enter an account number to view account details.");
-        emptyText.setFont(new Font("Segoe UI", Font.BOLD, 15));
-        emptyText.setForeground(TEXT_MUTED);
-        emptyText.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JLabel emptySubText = new JLabel("Real-time HashMap lookup will fetch active records.");
-        emptySubText.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        emptySubText.setForeground(new Color(150, 150, 155));
-        emptySubText.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        emptyContent.add(searchIcon);
-        emptyContent.add(Box.createRigidArea(new Dimension(0, 10)));
-        emptyContent.add(emptyText);
-        emptyContent.add(Box.createRigidArea(new Dimension(0, 4)));
-        emptyContent.add(emptySubText);
-
-        searchEmptyStatePanel.add(emptyContent);
-
-        // active details grid
-        searchDetailsGrid = new JPanel(new GridLayout(2, 3, 16, 16));
+        // grid for details when found
+        searchDetailsGrid = new JPanel(new GridLayout(3, 2, 16, 16));
         searchDetailsGrid.setOpaque(false);
         searchDetailsGrid.setVisible(false);
 
@@ -1205,37 +1424,36 @@ public class BankGUI extends JFrame {
         searchDetailsGrid.add(createDetailBlock("Current Balance", searchResBalance));
         searchDetailsGrid.add(createDetailBlock("Total Transactions", searchResTxnCount));
 
-        JPanel centerCardWrapper = new JPanel(new BorderLayout());
-        centerCardWrapper.setOpaque(false);
-        centerCardWrapper.add(searchEmptyStatePanel, BorderLayout.NORTH);
-        centerCardWrapper.add(searchDetailsGrid, BorderLayout.CENTER);
+        JPanel centerWrapper = new JPanel(new BorderLayout());
+        centerWrapper.setOpaque(false);
+        centerWrapper.add(searchEmptyStatePanel, BorderLayout.CENTER);
+        centerWrapper.add(searchDetailsGrid, BorderLayout.SOUTH);
+        detailsCard.add(centerWrapper, BorderLayout.CENTER);
 
-        profileCard.add(centerCardWrapper, BorderLayout.CENTER);
-
-        // action buttons at bottom
+        // contextual actions bar
         searchActionButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
         searchActionButtons.setOpaque(false);
         searchActionButtons.setVisible(false);
 
-        ModernButton goDepositBtn = new ModernButton("Deposit Funds", new Color(245, 242, 235), new Color(236, 232, 224), TEXT_DARK, 14);
-        goDepositBtn.addActionListener(e -> {
-            if (currentSearchedAccNo > 0) {
-                showScreen("Deposit");
-            }
-        });
-
-        ModernButton goStatementBtn = new ModernButton("View Statement", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 14);
-        goStatementBtn.addActionListener(e -> {
-            if (currentSearchedAccNo > 0) {
+        ModernButton statementBtn = new ModernButton("View Statement", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14);
+        statementBtn.addActionListener(e -> {
+            if (currentSearchedAccNo != -1) {
                 showScreen("Transactions");
+                if (txnAccNoField != null) {
+                    txnAccNoField.setText(String.valueOf(currentSearchedAccNo));
+                    if (txnViewBtn != null) txnViewBtn.doClick();
+                }
             }
         });
 
-        searchActionButtons.add(goDepositBtn);
-        searchActionButtons.add(goStatementBtn);
-        profileCard.add(searchActionButtons, BorderLayout.SOUTH);
+        ModernButton depositQuickBtn = new ModernButton("Deposit Funds", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 14);
+        depositQuickBtn.addActionListener(e -> showScreen("Deposit"));
 
-        contentContainer.add(profileCard);
+        searchActionButtons.add(statementBtn);
+        searchActionButtons.add(depositQuickBtn);
+        detailsCard.add(searchActionButtons, BorderLayout.SOUTH);
+
+        contentContainer.add(detailsCard);
 
         searchBtn.addActionListener(e -> {
             try {
@@ -1243,32 +1461,29 @@ public class BankGUI extends JFrame {
                 BankAccount acc = bank.search(accNo);
 
                 if (acc != null) {
-                    currentSearchedAccNo = acc.accountNo;
-                    searchResAccNo.setText(String.valueOf(acc.accountNo));
+                    currentSearchedAccNo = accNo;
+                    searchResAccNo.setText("#" + acc.accountNo);
                     searchResName.setText(acc.customer.name);
                     searchResPhone.setText(acc.customer.phone);
                     searchResType.setText(acc.type);
                     searchResBalance.setText(String.format("Rs. %,.2f", acc.balance));
-                    searchResTxnCount.setText(acc.transactions.size() + " records");
+                    searchResTxnCount.setText(acc.transactions.size() + " Records");
 
                     searchEmptyStatePanel.setVisible(false);
                     searchDetailsGrid.setVisible(true);
                     searchActionButtons.setVisible(true);
-
+                    searchStatusLabel.setText("Account Verified Active");
                     searchStatusLabel.setForeground(SUCCESS_GREEN);
-                    searchStatusLabel.setText("✓ Account found");
                 } else {
                     currentSearchedAccNo = -1;
                     searchEmptyStatePanel.setVisible(true);
                     searchDetailsGrid.setVisible(false);
                     searchActionButtons.setVisible(false);
-
+                    searchStatusLabel.setText("Account #" + accNo + " Not Found");
                     searchStatusLabel.setForeground(DANGER_RED);
-                    searchStatusLabel.setText("✗ Account " + accNo + " not found");
                 }
             } catch (NumberFormatException ex) {
-                searchStatusLabel.setForeground(DANGER_RED);
-                searchStatusLabel.setText("Please enter a valid numeric account number.");
+                JOptionPane.showMessageDialog(this, "Please enter a valid numeric account number.", "Input Error", JOptionPane.ERROR_MESSAGE);
             }
         });
 
@@ -1277,16 +1492,16 @@ public class BankGUI extends JFrame {
     }
 
     private JPanel createDetailBlock(String title, JLabel valueLabel) {
-        RoundedCard block = new RoundedCard(16, new Color(248, 247, 244), CARD_BORDER);
+        RoundedCard block = new RoundedCard(16, isDarkMode ? new Color(26, 28, 36) : new Color(248, 247, 244), cardBorder);
         block.setLayout(new BorderLayout(0, 4));
-        block.setBorder(new EmptyBorder(14, 16, 14, 16));
+        block.setBorder(new EmptyBorder(12, 16, 12, 16));
 
         JLabel titleLbl = new JLabel(title);
         titleLbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        titleLbl.setForeground(TEXT_MUTED);
+        titleLbl.setForeground(textMuted);
 
-        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        valueLabel.setForeground(TEXT_DARK);
+        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        valueLabel.setForeground(textMain);
 
         block.add(titleLbl, BorderLayout.NORTH);
         block.add(valueLabel, BorderLayout.CENTER);
@@ -1294,16 +1509,16 @@ public class BankGUI extends JFrame {
     }
 
     private JPanel createOverviewMetricBlock(String title, JLabel valueLabel) {
-        RoundedCard block = new RoundedCard(14, new Color(248, 247, 244), CARD_BORDER);
+        RoundedCard block = new RoundedCard(14, isDarkMode ? new Color(26, 28, 36) : new Color(248, 247, 244), cardBorder);
         block.setLayout(new BorderLayout(0, 2));
         block.setBorder(new EmptyBorder(8, 14, 8, 14));
 
         JLabel titleLbl = new JLabel(title);
         titleLbl.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        titleLbl.setForeground(TEXT_MUTED);
+        titleLbl.setForeground(textMuted);
 
         valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        valueLabel.setForeground(TEXT_DARK);
+        valueLabel.setForeground(textMain);
 
         block.add(titleLbl, BorderLayout.NORTH);
         block.add(valueLabel, BorderLayout.CENTER);
@@ -1311,7 +1526,7 @@ public class BankGUI extends JFrame {
     }
 
     // =========================================================================
-    // 7. TRANSACTIONS SCREEN
+    // 7. TRANSACTIONS SCREEN (POLISHED STATEMENT WITH EMPTY STATES)
     // =========================================================================
     private JPanel createTransactionsPanel() {
         JPanel panel = new JPanel(new BorderLayout(0, 16));
@@ -1323,9 +1538,9 @@ public class BankGUI extends JFrame {
         content.setOpaque(false);
 
         // top query card with search controls and neat customer info strip
-        RoundedCard queryCard = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
-        queryCard.setLayout(new BorderLayout(0, 12));
-        queryCard.setBorder(new EmptyBorder(18, 22, 18, 22));
+        RoundedCard queryCard = new RoundedCard(22, cardBg, cardBorder);
+        queryCard.setLayout(new BorderLayout(0, 10));
+        queryCard.setBorder(new EmptyBorder(16, 20, 16, 20));
 
         // row 1: search input and action button
         JPanel searchRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 14, 0));
@@ -1341,22 +1556,22 @@ public class BankGUI extends JFrame {
         queryCard.add(searchRow, BorderLayout.NORTH);
 
         // row 2: neat customer info strip displayed beside/below search controls
-        txnCustomerChipPanel = new RoundedCard(12, new Color(248, 246, 242), CARD_BORDER);
+        txnCustomerChipPanel = new RoundedCard(12, isDarkMode ? new Color(26, 28, 36) : new Color(248, 246, 242), cardBorder);
         txnCustomerChipPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 24, 6));
         txnCustomerChipPanel.setBorder(new EmptyBorder(4, 14, 4, 14));
         txnCustomerChipPanel.setVisible(false);
 
         txnCustomerNameLabel = new JLabel(" ");
         txnCustomerNameLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        txnCustomerNameLabel.setForeground(TEXT_DARK);
+        txnCustomerNameLabel.setForeground(textMain);
 
         txnCustomerPhoneLabel = new JLabel(" ");
         txnCustomerPhoneLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        txnCustomerPhoneLabel.setForeground(TEXT_MUTED);
+        txnCustomerPhoneLabel.setForeground(textMuted);
 
         txnCustomerTypeLabel = new JLabel(" ");
         txnCustomerTypeLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        txnCustomerTypeLabel.setForeground(new Color(118, 75, 185));
+        txnCustomerTypeLabel.setForeground(new Color(145, 110, 225));
 
         txnCustomerBalanceLabel = new JLabel(" ");
         txnCustomerBalanceLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
@@ -1371,7 +1586,7 @@ public class BankGUI extends JFrame {
         content.add(queryCard, BorderLayout.NORTH);
 
         // transaction records card
-        RoundedCard tableCard = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
+        RoundedCard tableCard = new RoundedCard(22, cardBg, cardBorder);
         tableCard.setLayout(new BorderLayout(0, 14));
         tableCard.setBorder(new EmptyBorder(22, 24, 22, 24));
 
@@ -1381,11 +1596,11 @@ public class BankGUI extends JFrame {
 
         JLabel statementTitle = new JLabel("Transaction Records");
         statementTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        statementTitle.setForeground(TEXT_DARK);
+        statementTitle.setForeground(textMain);
 
         txnHeaderStatsLabel = new JLabel("Account Type: -  •  Current Balance: -");
         txnHeaderStatsLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        txnHeaderStatsLabel.setForeground(TEXT_MUTED);
+        txnHeaderStatsLabel.setForeground(textMuted);
 
         tableHeaderPanel.add(statementTitle, BorderLayout.WEST);
         tableHeaderPanel.add(txnHeaderStatsLabel, BorderLayout.EAST);
@@ -1410,12 +1625,12 @@ public class BankGUI extends JFrame {
 
         txnEmptyStateTitle = new JLabel("No transactions yet");
         txnEmptyStateTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        txnEmptyStateTitle.setForeground(TEXT_MUTED);
+        txnEmptyStateTitle.setForeground(textMuted);
         txnEmptyStateTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         txnEmptyStateSubtitle = new JLabel("Search for an account above to view its transaction history.");
         txnEmptyStateSubtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        txnEmptyStateSubtitle.setForeground(new Color(150, 150, 155));
+        txnEmptyStateSubtitle.setForeground(textMuted);
         txnEmptyStateSubtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         emptyContent.add(emptyIcon);
@@ -1440,7 +1655,7 @@ public class BankGUI extends JFrame {
 
         txnScrollPane = new JScrollPane(table);
         txnScrollPane.setBorder(BorderFactory.createEmptyBorder());
-        txnScrollPane.getViewport().setBackground(CARD_WHITE);
+        txnScrollPane.getViewport().setBackground(cardBg);
 
         centerCards.add(txnEmptyStatePanel, "EMPTY");
         centerCards.add(txnScrollPane, "TABLE");
@@ -1473,7 +1688,7 @@ public class BankGUI extends JFrame {
 
                 // display customer information neatly
                 txnCustomerChipPanel.setVisible(true);
-                txnCustomerNameLabel.setForeground(TEXT_DARK);
+                txnCustomerNameLabel.setForeground(textMain);
                 txnCustomerNameLabel.setText("👤 " + acc.customer.name);
                 txnCustomerPhoneLabel.setText("📞 " + acc.customer.phone);
                 txnCustomerTypeLabel.setText("🏷 " + acc.type);
@@ -1481,7 +1696,7 @@ public class BankGUI extends JFrame {
 
                 // update right header
                 txnHeaderStatsLabel.setText(String.format("Account Type: %s   •   Current Balance: Rs. %,.2f", acc.type, acc.balance));
-                txnHeaderStatsLabel.setForeground(TEXT_DARK);
+                txnHeaderStatsLabel.setForeground(textMain);
 
                 if (acc.transactions.isEmpty()) {
                     txnEmptyStateTitle.setText("No transactions yet");
@@ -1529,8 +1744,8 @@ public class BankGUI extends JFrame {
         JPanel columnsPanel = new JPanel(new GridLayout(1, 2, 22, 0));
         columnsPanel.setOpaque(false);
 
-        // LEFT COLUMN: Information Card
-        GradientCard leftCard = new GradientCard(22, LAVENDER_START, LAVENDER_END, LAVENDER_BORDER);
+        // LEFT COLUMN: Information Card with soft lavender identity
+        GradientCard leftCard = new GradientCard(22, lavenderStart, lavenderEnd, lavenderBorder);
         leftCard.setLayout(new BorderLayout(0, 16));
         leftCard.setBorder(new EmptyBorder(26, 26, 26, 26));
 
@@ -1538,168 +1753,175 @@ public class BankGUI extends JFrame {
         leftTopPanel.setOpaque(false);
         leftTopPanel.setLayout(new BoxLayout(leftTopPanel, BoxLayout.Y_AXIS));
 
-        JPanel badgePill = new RoundedCard(12, new Color(236, 226, 252), new Color(214, 198, 244));
+        JPanel badgePill = new RoundedCard(12, isDarkMode ? new Color(42, 34, 58) : new Color(240, 230, 255), isDarkMode ? new Color(70, 52, 95) : new Color(215, 195, 245));
         badgePill.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 4));
         badgePill.setMaximumSize(new Dimension(135, 26));
         badgePill.setAlignmentX(Component.LEFT_ALIGNMENT);
-        JLabel badgeLbl = new JLabel("UPDATE PROFILE");
+        JLabel badgeLbl = new JLabel("PROFILE EDIT");
         badgeLbl.setFont(new Font("Segoe UI", Font.BOLD, 10));
-        badgeLbl.setForeground(new Color(110, 70, 180));
+        badgeLbl.setForeground(new Color(145, 110, 225));
         badgePill.add(badgeLbl);
 
-        JLabel leftTitle = new JLabel("Maintain Customer Data");
+        JLabel leftTitle = new JLabel("Update Records");
         leftTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        leftTitle.setForeground(TEXT_DARK);
+        leftTitle.setForeground(textMain);
         leftTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel leftDesc = new JLabel("<html>Modify customer name and telephone records while preserving balance and account history.</html>");
+        JLabel leftDesc = new JLabel("<html>Modify customer name or contact number while preserving account history and ledger balances intact.</html>");
         leftDesc.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        leftDesc.setForeground(new Color(100, 95, 115));
+        leftDesc.setForeground(textMuted);
         leftDesc.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         leftTopPanel.add(badgePill);
-        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 12)));
         leftTopPanel.add(leftTitle);
-        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 6)));
+        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 8)));
         leftTopPanel.add(leftDesc);
 
         leftCard.add(leftTopPanel, BorderLayout.NORTH);
 
-        // center: decorative update visual + features list
-        JPanel leftCenterPanel = new JPanel();
-        leftCenterPanel.setOpaque(false);
-        leftCenterPanel.setLayout(new BoxLayout(leftCenterPanel, BoxLayout.Y_AXIS));
-
         DecorativeUpdateVisual updateVisual = new DecorativeUpdateVisual();
-        updateVisual.setAlignmentX(Component.LEFT_ALIGNMENT);
-        leftCenterPanel.add(updateVisual);
-        leftCenterPanel.add(Box.createRigidArea(new Dimension(0, 18)));
+        leftCard.add(updateVisual, BorderLayout.CENTER);
 
-        JPanel featuresPanel = new JPanel(new GridLayout(3, 1, 0, 10));
-        featuresPanel.setOpaque(false);
-        featuresPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        featuresPanel.add(createFeatureRow("Persistent Identity Link", "Account number and financial balance remain intact."));
-        featuresPanel.add(createFeatureRow("Multi-Registry Sync", "Customer updates instantly propagate across all views."));
-        featuresPanel.add(createFeatureRow("Immediate Refresh", "Overview tables sync data without requiring application reboot."));
-
-        leftCenterPanel.add(featuresPanel);
-        leftCard.add(leftCenterPanel, BorderLayout.CENTER);
-
-        // bottom tip
-        JPanel leftBottomPanel = new JPanel(new BorderLayout());
+        JPanel leftBottomPanel = new JPanel();
         leftBottomPanel.setOpaque(false);
-        RoundedCard tipBadge = new RoundedCard(14, CARD_WHITE, new Color(225, 212, 248));
-        tipBadge.setLayout(new FlowLayout(FlowLayout.LEFT, 14, 8));
-        JLabel tipLbl = new JLabel("✓ Account balance and type remain untouched");
-        tipLbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        tipLbl.setForeground(new Color(110, 70, 180));
-        tipBadge.add(tipLbl);
-        leftBottomPanel.add(tipBadge, BorderLayout.WEST);
+        leftBottomPanel.setLayout(new BoxLayout(leftBottomPanel, BoxLayout.Y_AXIS));
+
+        JLabel infoTitle = new JLabel("Immutable Ledger Protected");
+        infoTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        infoTitle.setForeground(textMain);
+        infoTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel infoDesc = new JLabel("Account numbers and balances cannot be accidentally overwritten.");
+        infoDesc.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        infoDesc.setForeground(textMuted);
+        infoDesc.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        leftBottomPanel.add(infoTitle);
+        leftBottomPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        leftBottomPanel.add(infoDesc);
         leftCard.add(leftBottomPanel, BorderLayout.SOUTH);
 
-        // RIGHT COLUMN: White Form Card
-        RoundedCard rightCard = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
-        rightCard.setLayout(new BorderLayout(0, 16));
-        rightCard.setBorder(new EmptyBorder(26, 30, 26, 30));
+        // RIGHT COLUMN: Form Card
+        RoundedCard rightCard = new RoundedCard(22, cardBg, cardBorder);
+        rightCard.setLayout(new BorderLayout(0, 14));
+        rightCard.setBorder(new EmptyBorder(26, 28, 26, 28));
 
-        JPanel formHeader = new JPanel(new GridLayout(2, 1, 0, 3));
-        formHeader.setOpaque(false);
+        JPanel formTitleBlock = new JPanel(new GridLayout(2, 1, 0, 3));
+        formTitleBlock.setOpaque(false);
+        JLabel formHeading = new JLabel("Customer Information");
+        formHeading.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        formHeading.setForeground(textMain);
+        JLabel formSubheading = new JLabel("Load an existing account to update customer details.");
+        formSubheading.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        formSubheading.setForeground(textMuted);
+        formTitleBlock.add(formHeading);
+        formTitleBlock.add(formSubheading);
+        rightCard.add(formTitleBlock, BorderLayout.NORTH);
 
-        JLabel formTitle = new JLabel("Update Particulars");
-        formTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        formTitle.setForeground(TEXT_DARK);
+        JPanel formFieldsPanel = new JPanel();
+        formFieldsPanel.setOpaque(false);
+        formFieldsPanel.setLayout(new BoxLayout(formFieldsPanel, BoxLayout.Y_AXIS));
 
-        JLabel formSub = new JLabel("Enter target account number and updated customer identity.");
-        formSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        formSub.setForeground(TEXT_MUTED);
-
-        formHeader.add(formTitle);
-        formHeader.add(formSub);
-        rightCard.add(formHeader, BorderLayout.NORTH);
-
-        JPanel formFields = new JPanel();
-        formFields.setOpaque(false);
-        formFields.setLayout(new BoxLayout(formFields, BoxLayout.Y_AXIS));
-
-        formFields.add(createFormLabel("Account Number *"));
-        formFields.add(Box.createRigidArea(new Dimension(0, 5)));
         ModernTextField accNoField = new ModernTextField(20);
-        accNoField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
-        accNoField.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(accNoField);
-        formFields.add(Box.createRigidArea(new Dimension(0, 12)));
-
-        formFields.add(createFormLabel("New Customer Name *"));
-        formFields.add(Box.createRigidArea(new Dimension(0, 5)));
         ModernTextField nameField = new ModernTextField(20);
-        nameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
-        nameField.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(nameField);
-        formFields.add(Box.createRigidArea(new Dimension(0, 12)));
-
-        formFields.add(createFormLabel("New Phone Number *"));
-        formFields.add(Box.createRigidArea(new Dimension(0, 5)));
         ModernTextField phoneField = new ModernTextField(20);
-        phoneField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
-        phoneField.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(phoneField);
-        formFields.add(Box.createRigidArea(new Dimension(0, 18)));
 
-        ModernButton updateBtn = new ModernButton("Update Customer", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 16);
-        updateBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        updateBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        updateBtn.setPreferredSize(new Dimension(300, 44));
-        updateBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(updateBtn);
-        formFields.add(Box.createRigidArea(new Dimension(0, 10)));
+        JPanel loadRow = new JPanel(new BorderLayout(10, 0));
+        loadRow.setOpaque(false);
+        loadRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+        loadRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        loadRow.add(accNoField, BorderLayout.CENTER);
 
-        JLabel statusLabel = new JLabel(" ");
-        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        statusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(statusLabel);
+        ModernButton loadBtn = new ModernButton("Load Info", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14);
+        loadBtn.setPreferredSize(new Dimension(110, 42));
+        loadRow.add(loadBtn, BorderLayout.EAST);
 
-        rightCard.add(formFields, BorderLayout.CENTER);
+        formFieldsPanel.add(createFormLabel("Account Number to Update"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(loadRow);
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 14)));
 
-        updateBtn.addActionListener(e -> {
+        formFieldsPanel.add(createFormLabel("New Customer Name"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(nameField);
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 14)));
+
+        formFieldsPanel.add(createFormLabel("New Phone Number"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(phoneField);
+        formFieldsPanel.add(Box.createVerticalGlue());
+
+        rightCard.add(formFieldsPanel, BorderLayout.CENTER);
+
+        loadBtn.addActionListener(e -> {
             try {
                 int accNo = Integer.parseInt(accNoField.getText().trim());
-                String name = nameField.getText().trim();
-                String phone = phoneField.getText().trim();
+                BankAccount acc = bank.search(accNo);
+                if (acc == null) {
+                    JOptionPane.showMessageDialog(this, "Account #" + accNo + " does not exist.", "Account Not Found", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                nameField.setText(acc.customer.name);
+                phoneField.setText(acc.customer.phone);
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "Please enter a valid numeric account number.", "Input Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
 
-                if (name.isEmpty() || phone.isEmpty()) {
-                    statusLabel.setForeground(DANGER_RED);
-                    statusLabel.setText("Please enter both name and phone number.");
+        JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        actionsPanel.setOpaque(false);
+
+        ModernButton cancelBtn = new ModernButton("Cancel", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14);
+        cancelBtn.addActionListener(e -> showScreen("Dashboard"));
+
+        ModernButton saveBtn = new ModernButton("Save Changes", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 14);
+        saveBtn.setPreferredSize(new Dimension(170, 44));
+
+        saveBtn.addActionListener(e -> {
+            try {
+                int accNo = Integer.parseInt(accNoField.getText().trim());
+                String newName = nameField.getText().trim();
+                String newPhone = phoneField.getText().trim();
+
+                if (newName.isEmpty() || newPhone.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "Name and phone cannot be empty.", "Validation Error", JOptionPane.WARNING_MESSAGE);
                     return;
                 }
 
-                boolean success = bank.update(accNo, name, phone);
-                if (success) {
-                    statusLabel.setForeground(SUCCESS_GREEN);
-                    statusLabel.setText("✓ Customer details updated successfully for Account No: " + accNo);
-                    accNoField.setText("");
-                    nameField.setText("");
-                    phoneField.setText("");
-                    refreshAll();
-                } else {
-                    statusLabel.setForeground(DANGER_RED);
-                    statusLabel.setText("Update failed. Account not found.");
+                BankAccount acc = bank.search(accNo);
+                if (acc == null) {
+                    JOptionPane.showMessageDialog(this, "Account #" + accNo + " does not exist.", "Account Not Found", JOptionPane.ERROR_MESSAGE);
+                    return;
                 }
+
+                bank.update(accNo, newName, newPhone);
+
+                JOptionPane.showMessageDialog(
+                    this,
+                    String.format("Customer Details Updated!\n\nAccount: #%d\nName: %s\nPhone: %s", accNo, newName, newPhone),
+                    "Profile Updated",
+                    JOptionPane.INFORMATION_MESSAGE
+                );
+
+                accNoField.setText("");
+                nameField.setText("");
+                phoneField.setText("");
+                refreshAll();
+                showScreen("Accounts");
             } catch (NumberFormatException ex) {
-                statusLabel.setForeground(DANGER_RED);
-                statusLabel.setText("Please enter a valid numeric account number.");
+                JOptionPane.showMessageDialog(this, "Please enter a valid numeric account number.", "Input Error", JOptionPane.ERROR_MESSAGE);
             }
         });
+
+        actionsPanel.add(cancelBtn);
+        actionsPanel.add(saveBtn);
+        rightCard.add(actionsPanel, BorderLayout.SOUTH);
 
         columnsPanel.add(leftCard);
         columnsPanel.add(rightCard);
 
-        JScrollPane scroll = new JScrollPane(columnsPanel);
-        scroll.setOpaque(false);
-        scroll.getViewport().setOpaque(false);
-        scroll.setBorder(null);
-
-        panel.add(scroll, BorderLayout.CENTER);
+        panel.add(columnsPanel, BorderLayout.CENTER);
         return panel;
     }
 
@@ -1710,13 +1932,13 @@ public class BankGUI extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(0, 16));
         panel.setOpaque(false);
 
-        panel.add(createHeaderTitleBlock("Delete Account", "Remove an existing customer account."), BorderLayout.NORTH);
+        panel.add(createHeaderTitleBlock("Close / Delete Account", "Permanently remove an account record from the registry."), BorderLayout.NORTH);
 
         JPanel columnsPanel = new JPanel(new GridLayout(1, 2, 22, 0));
         columnsPanel.setOpaque(false);
 
-        // LEFT COLUMN: Subtle Danger-Themed Information Card
-        GradientCard leftCard = new GradientCard(22, DANGER_START, DANGER_END, DANGER_BORDER);
+        // LEFT COLUMN: Information Card with soft danger/red identity
+        GradientCard leftCard = new GradientCard(22, dangerStart, dangerEnd, dangerBorder);
         leftCard.setLayout(new BorderLayout(0, 16));
         leftCard.setBorder(new EmptyBorder(26, 26, 26, 26));
 
@@ -1724,159 +1946,159 @@ public class BankGUI extends JFrame {
         leftTopPanel.setOpaque(false);
         leftTopPanel.setLayout(new BoxLayout(leftTopPanel, BoxLayout.Y_AXIS));
 
-        JPanel badgePill = new RoundedCard(12, new Color(254, 218, 218), new Color(245, 185, 185));
+        JPanel badgePill = new RoundedCard(12, isDarkMode ? new Color(54, 28, 28) : new Color(255, 230, 230), isDarkMode ? new Color(90, 42, 42) : new Color(250, 195, 195));
         badgePill.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 4));
-        badgePill.setMaximumSize(new Dimension(140, 26));
+        badgePill.setMaximumSize(new Dimension(135, 26));
         badgePill.setAlignmentX(Component.LEFT_ALIGNMENT);
-        JLabel badgeLbl = new JLabel("DESTRUCTIVE ACTION");
+        JLabel badgeLbl = new JLabel("CLOSURE ACTION");
         badgeLbl.setFont(new Font("Segoe UI", Font.BOLD, 10));
         badgeLbl.setForeground(DANGER_RED);
         badgePill.add(badgeLbl);
 
-        JLabel leftTitle = new JLabel("Account Deletion Protocol");
+        JLabel leftTitle = new JLabel("Account Closure");
         leftTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        leftTitle.setForeground(TEXT_DARK);
+        leftTitle.setForeground(textMain);
         leftTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel leftDesc = new JLabel("<html>Permanently revoke and purge customer records from the core bank registry.</html>");
+        JLabel leftDesc = new JLabel("<html>Closing an account permanently deregisters it from both the account index and sorted balance views.</html>");
         leftDesc.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        leftDesc.setForeground(new Color(125, 95, 95));
+        leftDesc.setForeground(textMuted);
         leftDesc.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         leftTopPanel.add(badgePill);
-        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 12)));
         leftTopPanel.add(leftTitle);
-        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 6)));
+        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 8)));
         leftTopPanel.add(leftDesc);
 
         leftCard.add(leftTopPanel, BorderLayout.NORTH);
 
-        // center: decorative delete visual + warnings
-        JPanel leftCenterPanel = new JPanel();
-        leftCenterPanel.setOpaque(false);
-        leftCenterPanel.setLayout(new BoxLayout(leftCenterPanel, BoxLayout.Y_AXIS));
-
         DecorativeDeleteVisual deleteVisual = new DecorativeDeleteVisual();
-        deleteVisual.setAlignmentX(Component.LEFT_ALIGNMENT);
-        leftCenterPanel.add(deleteVisual);
-        leftCenterPanel.add(Box.createRigidArea(new Dimension(0, 18)));
+        leftCard.add(deleteVisual, BorderLayout.CENTER);
 
-        JPanel featuresPanel = new JPanel(new GridLayout(3, 1, 0, 10));
-        featuresPanel.setOpaque(false);
-        featuresPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        featuresPanel.add(createFeatureRow("Irreversible Removal", "Purged records cannot be restored once confirmed."));
-        featuresPanel.add(createFeatureRow("Full Ledger Deletion", "Account is deleted from both HashMap and TreeMap."));
-        featuresPanel.add(createFeatureRow("Explicit Confirmation", "Requires active dialog confirmation prior to deletion."));
-
-        leftCenterPanel.add(featuresPanel);
-        leftCard.add(leftCenterPanel, BorderLayout.CENTER);
-
-        // bottom tip
-        JPanel leftBottomPanel = new JPanel(new BorderLayout());
+        JPanel leftBottomPanel = new JPanel();
         leftBottomPanel.setOpaque(false);
-        RoundedCard tipBadge = new RoundedCard(14, CARD_WHITE, new Color(248, 204, 204));
-        tipBadge.setLayout(new FlowLayout(FlowLayout.LEFT, 14, 8));
-        JLabel tipLbl = new JLabel("⚠ Warning: Confirm customer identity prior to purging");
-        tipLbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        tipLbl.setForeground(DANGER_RED);
-        tipBadge.add(tipLbl);
-        leftBottomPanel.add(tipBadge, BorderLayout.WEST);
+        leftBottomPanel.setLayout(new BoxLayout(leftBottomPanel, BoxLayout.Y_AXIS));
+
+        JLabel infoTitle = new JLabel("Irreversible Deletion");
+        infoTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        infoTitle.setForeground(textMain);
+        infoTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel infoDesc = new JLabel("Please verify customer identity before confirming removal.");
+        infoDesc.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        infoDesc.setForeground(textMuted);
+        infoDesc.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        leftBottomPanel.add(infoTitle);
+        leftBottomPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        leftBottomPanel.add(infoDesc);
         leftCard.add(leftBottomPanel, BorderLayout.SOUTH);
 
-        // RIGHT COLUMN: White Form Card
-        RoundedCard rightCard = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
-        rightCard.setLayout(new BorderLayout(0, 16));
-        rightCard.setBorder(new EmptyBorder(26, 30, 26, 30));
+        // RIGHT COLUMN: Form Card
+        RoundedCard rightCard = new RoundedCard(22, cardBg, cardBorder);
+        rightCard.setLayout(new BorderLayout(0, 14));
+        rightCard.setBorder(new EmptyBorder(26, 28, 26, 28));
 
-        JPanel formHeader = new JPanel(new GridLayout(2, 1, 0, 3));
-        formHeader.setOpaque(false);
+        JPanel formTitleBlock = new JPanel(new GridLayout(2, 1, 0, 3));
+        formTitleBlock.setOpaque(false);
+        JLabel formHeading = new JLabel("Confirm Deletion");
+        formHeading.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        formHeading.setForeground(textMain);
+        JLabel formSubheading = new JLabel("Enter the account number to permanently close.");
+        formSubheading.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        formSubheading.setForeground(textMuted);
+        formTitleBlock.add(formHeading);
+        formTitleBlock.add(formSubheading);
+        rightCard.add(formTitleBlock, BorderLayout.NORTH);
 
-        JLabel formTitle = new JLabel("Target Account");
-        formTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        formTitle.setForeground(TEXT_DARK);
+        JPanel formFieldsPanel = new JPanel();
+        formFieldsPanel.setOpaque(false);
+        formFieldsPanel.setLayout(new BoxLayout(formFieldsPanel, BoxLayout.Y_AXIS));
 
-        JLabel formSub = new JLabel("Specify the account number targeted for permanent deletion.");
-        formSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        formSub.setForeground(TEXT_MUTED);
-
-        formHeader.add(formTitle);
-        formHeader.add(formSub);
-        rightCard.add(formHeader, BorderLayout.NORTH);
-
-        JPanel formFields = new JPanel();
-        formFields.setOpaque(false);
-        formFields.setLayout(new BoxLayout(formFields, BoxLayout.Y_AXIS));
-
-        formFields.add(createFormLabel("Account Number *"));
-        formFields.add(Box.createRigidArea(new Dimension(0, 5)));
         ModernTextField accNoField = new ModernTextField(20);
-        accNoField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
-        accNoField.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(accNoField);
-        formFields.add(Box.createRigidArea(new Dimension(0, 22)));
 
-        ModernButton deleteBtn = new ModernButton("Delete Account", DANGER_RED, DANGER_RED_HOVER, Color.WHITE, 16);
-        deleteBtn.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        deleteBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
-        deleteBtn.setPreferredSize(new Dimension(300, 44));
-        deleteBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(deleteBtn);
-        formFields.add(Box.createRigidArea(new Dimension(0, 12)));
+        JPanel previewCard = new RoundedCard(14, isDarkMode ? new Color(26, 28, 36) : new Color(248, 247, 244), cardBorder);
+        previewCard.setLayout(new BorderLayout(0, 6));
+        previewCard.setBorder(new EmptyBorder(14, 16, 14, 16));
+        previewCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 85));
+        previewCard.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel statusLabel = new JLabel(" ");
-        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        statusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        formFields.add(statusLabel);
+        JLabel previewTitle = new JLabel("Warning Notice");
+        previewTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        previewTitle.setForeground(DANGER_RED);
 
-        rightCard.add(formFields, BorderLayout.CENTER);
+        JLabel previewText = new JLabel("<html>Once deleted, remaining balance should be disbursed to customer and ledger references will be unindexed.</html>");
+        previewText.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        previewText.setForeground(textMuted);
+
+        previewCard.add(previewTitle, BorderLayout.NORTH);
+        previewCard.add(previewText, BorderLayout.CENTER);
+
+        formFieldsPanel.add(createFormLabel("Account Number to Delete"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(accNoField);
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 16)));
+        formFieldsPanel.add(previewCard);
+        formFieldsPanel.add(Box.createVerticalGlue());
+
+        rightCard.add(formFieldsPanel, BorderLayout.CENTER);
+
+        JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        actionsPanel.setOpaque(false);
+
+        ModernButton cancelBtn = new ModernButton("Cancel", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14);
+        cancelBtn.addActionListener(e -> showScreen("Dashboard"));
+
+        ModernButton deleteBtn = new ModernButton("Delete Account", DANGER_RED, DANGER_RED_HOVER, Color.WHITE, 14);
+        deleteBtn.setPreferredSize(new Dimension(170, 44));
 
         deleteBtn.addActionListener(e -> {
             try {
                 int accNo = Integer.parseInt(accNoField.getText().trim());
-
                 BankAccount acc = bank.search(accNo);
+
                 if (acc == null) {
-                    statusLabel.setForeground(DANGER_RED);
-                    statusLabel.setText("Account not found.");
+                    JOptionPane.showMessageDialog(this, "Account #" + accNo + " does not exist.", "Account Not Found", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
 
-                int choice = JOptionPane.showConfirmDialog(
-                        this,
-                        "Are you sure you want to delete this account?\n\nAccount: " + accNo + " (" + acc.customer.name + ")\nBalance: Rs. " + acc.balance,
-                        "Confirm Deletion",
-                        JOptionPane.YES_NO_OPTION,
-                        JOptionPane.WARNING_MESSAGE
+                int confirm = JOptionPane.showConfirmDialog(
+                    this,
+                    String.format("Are you sure you want to permanently delete this account?\n\nAccount: #%d\nCustomer: %s\nBalance: Rs. %,.2f",
+                        accNo, acc.customer.name, acc.balance),
+                    "Confirm Account Deletion",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
                 );
 
-                if (choice == JOptionPane.YES_OPTION) {
-                    boolean success = bank.delete(accNo);
-                    if (success) {
-                        statusLabel.setForeground(SUCCESS_GREEN);
-                        statusLabel.setText("✓ Account " + accNo + " deleted successfully.");
-                        accNoField.setText("");
-                        refreshAll();
-                    } else {
-                        statusLabel.setForeground(DANGER_RED);
-                        statusLabel.setText("Delete failed.");
-                    }
+                if (confirm == JOptionPane.YES_OPTION) {
+                    bank.delete(accNo);
+
+                    JOptionPane.showMessageDialog(
+                        this,
+                        "Account #" + accNo + " has been permanently removed.",
+                        "Account Deleted",
+                        JOptionPane.INFORMATION_MESSAGE
+                    );
+
+                    accNoField.setText("");
+                    refreshAll();
+                    showScreen("Accounts");
                 }
             } catch (NumberFormatException ex) {
-                statusLabel.setForeground(DANGER_RED);
-                statusLabel.setText("Please enter a valid numeric account number.");
+                JOptionPane.showMessageDialog(this, "Please enter a valid numeric account number.", "Input Error", JOptionPane.ERROR_MESSAGE);
             }
         });
+
+        actionsPanel.add(cancelBtn);
+        actionsPanel.add(deleteBtn);
+        rightCard.add(actionsPanel, BorderLayout.SOUTH);
 
         columnsPanel.add(leftCard);
         columnsPanel.add(rightCard);
 
-        JScrollPane scroll = new JScrollPane(columnsPanel);
-        scroll.setOpaque(false);
-        scroll.getViewport().setOpaque(false);
-        scroll.setBorder(null);
-
-        panel.add(scroll, BorderLayout.CENTER);
+        panel.add(columnsPanel, BorderLayout.CENTER);
         return panel;
     }
 
@@ -1890,9 +2112,9 @@ public class BankGUI extends JFrame {
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setOpaque(false);
 
-        JPanel titleBlock = createHeaderTitleBlock("Bank Summary", "Overview of the current bank account records.");
+        JPanel titleBlock = createHeaderTitleBlock("Bank Summary", "Overview of current bank account records and portfolio metrics.");
 
-        ModernButton refreshBtn = new ModernButton("↻ Refresh Data", new Color(245, 242, 235), new Color(236, 232, 224), TEXT_DARK, 14);
+        ModernButton refreshBtn = new ModernButton("↻ Refresh Data", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14);
         refreshBtn.addActionListener(e -> refreshSummary());
 
         headerPanel.add(titleBlock, BorderLayout.WEST);
@@ -1903,23 +2125,23 @@ public class BankGUI extends JFrame {
         content.setOpaque(false);
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
 
-        // top 4 refined analytical summary cards
+        // top 4 refined analytical summary cards with icons and sparklines
         JPanel summaryGrid = new JPanel(new GridLayout(1, 4, 14, 0));
         summaryGrid.setOpaque(false);
         summaryGrid.setMaximumSize(new Dimension(Integer.MAX_VALUE, 105));
         summaryGrid.setPreferredSize(new Dimension(860, 105));
 
         summaryTotalAccountsLabel = new JLabel("0");
-        summaryGrid.add(createStatCard("Total Accounts", summaryTotalAccountsLabel, "Registered active accounts", BLUE_START, BLUE_END, BLUE_BORDER));
+        summaryGrid.add(createStatCard("Total Accounts", summaryTotalAccountsLabel, "Registered active accounts", blueStart, blueEnd, blueBorder, "👥", 1));
 
         summaryTotalBalanceLabel = new JLabel("Rs. 0.00");
-        summaryGrid.add(createStatCard("Total Balance", summaryTotalBalanceLabel, "Cumulative customer funds", PEACH_START, PEACH_END, PEACH_BORDER));
+        summaryGrid.add(createStatCard("Total Balance", summaryTotalBalanceLabel, "Cumulative customer funds", peachStart, peachEnd, peachBorder, "💳", 0));
 
         summaryAvgBalanceLabel = new JLabel("Rs. 0.00");
-        summaryGrid.add(createStatCard("Avg Account Balance", summaryAvgBalanceLabel, "Balance per active account", YELLOW_START, YELLOW_END, YELLOW_BORDER));
+        summaryGrid.add(createStatCard("Avg Account Balance", summaryAvgBalanceLabel, "Balance per active account", yellowStart, yellowEnd, yellowBorder, "📊", 3));
 
         summarySavingsCountLabel = new JLabel("0");
-        summaryGrid.add(createStatCard("Savings Accounts", summarySavingsCountLabel, "Retail deposit base", LAVENDER_START, LAVENDER_END, LAVENDER_BORDER));
+        summaryGrid.add(createStatCard("Savings Accounts", summarySavingsCountLabel, "Retail deposit base", lavenderStart, lavenderEnd, lavenderBorder, "🛡", 2));
 
         content.add(summaryGrid);
         content.add(Box.createRigidArea(new Dimension(0, 14)));
@@ -1927,11 +2149,11 @@ public class BankGUI extends JFrame {
         // middle row: portfolio distribution (with progress bars) & user-facing overview metrics
         JPanel middleRow = new JPanel(new GridLayout(1, 2, 16, 0));
         middleRow.setOpaque(false);
-        middleRow.setPreferredSize(new Dimension(860, 215));
-        middleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 220));
+        middleRow.setPreferredSize(new Dimension(860, 230));
+        middleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 235));
 
         // LEFT CARD: Portfolio Distribution
-        RoundedCard distCard = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
+        RoundedCard distCard = new RoundedCard(22, cardBg, cardBorder);
         distCard.setLayout(new BorderLayout(0, 12));
         distCard.setBorder(new EmptyBorder(18, 22, 18, 22));
 
@@ -1939,10 +2161,10 @@ public class BankGUI extends JFrame {
         distHeader.setOpaque(false);
         JLabel distTitle = new JLabel("Portfolio Distribution");
         distTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        distTitle.setForeground(TEXT_DARK);
+        distTitle.setForeground(textMain);
         JLabel distSub = new JLabel("Visual ratio of retail savings versus commercial accounts.");
         distSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        distSub.setForeground(TEXT_MUTED);
+        distSub.setForeground(textMuted);
         distHeader.add(distTitle);
         distHeader.add(distSub);
         distCard.add(distHeader, BorderLayout.NORTH);
@@ -1957,12 +2179,13 @@ public class BankGUI extends JFrame {
 
         JLabel savingsTitle = new JLabel("Savings Accounts");
         savingsTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        savingsTitle.setForeground(TEXT_DARK);
+        savingsTitle.setForeground(textMain);
 
-        summarySavingsBar = new RoundedProgressBar(new Color(142, 101, 211));
+        Color trackCol = isDarkMode ? new Color(38, 42, 52) : new Color(240, 237, 232);
+        summarySavingsBar = new RoundedProgressBar(new Color(142, 101, 211), trackCol);
         summarySavingsMetricsLabel = new JLabel("0 accounts (0%)");
         summarySavingsMetricsLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        summarySavingsMetricsLabel.setForeground(TEXT_MUTED);
+        summarySavingsMetricsLabel.setForeground(textMuted);
 
         savingsGroup.add(savingsTitle);
         savingsGroup.add(Box.createRigidArea(new Dimension(0, 6)));
@@ -1977,12 +2200,12 @@ public class BankGUI extends JFrame {
 
         JLabel currentTitle = new JLabel("Current Accounts");
         currentTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        currentTitle.setForeground(TEXT_DARK);
+        currentTitle.setForeground(textMain);
 
-        summaryCurrentBar = new RoundedProgressBar(new Color(229, 147, 58));
+        summaryCurrentBar = new RoundedProgressBar(new Color(229, 147, 58), trackCol);
         summaryCurrentMetricsLabel = new JLabel("0 accounts (0%)");
         summaryCurrentMetricsLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        summaryCurrentMetricsLabel.setForeground(TEXT_MUTED);
+        summaryCurrentMetricsLabel.setForeground(textMuted);
 
         currentGroup.add(currentTitle);
         currentGroup.add(Box.createRigidArea(new Dimension(0, 6)));
@@ -1995,7 +2218,7 @@ public class BankGUI extends JFrame {
         distCard.add(barsPanel, BorderLayout.CENTER);
 
         // RIGHT CARD: Account & Transaction Overview (User-Facing Business Metrics)
-        RoundedCard overviewCard = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
+        RoundedCard overviewCard = new RoundedCard(22, cardBg, cardBorder);
         overviewCard.setLayout(new BorderLayout(0, 12));
         overviewCard.setBorder(new EmptyBorder(18, 22, 18, 22));
 
@@ -2003,10 +2226,10 @@ public class BankGUI extends JFrame {
         overviewHeader.setOpaque(false);
         JLabel overviewTitle = new JLabel("Account & Transaction Overview");
         overviewTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        overviewTitle.setForeground(TEXT_DARK);
+        overviewTitle.setForeground(textMain);
         JLabel overviewSub = new JLabel("Aggregated liquidity and volume across all accounts.");
         overviewSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        overviewSub.setForeground(TEXT_MUTED);
+        overviewSub.setForeground(textMuted);
         overviewHeader.add(overviewTitle);
         overviewHeader.add(overviewSub);
         overviewCard.add(overviewHeader, BorderLayout.NORTH);
@@ -2026,16 +2249,13 @@ public class BankGUI extends JFrame {
 
         overviewCard.add(metricsGrid, BorderLayout.CENTER);
 
-        middleRow.setPreferredSize(new Dimension(860, 235));
-        middleRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 240));
-
         middleRow.add(distCard);
         middleRow.add(overviewCard);
         content.add(middleRow);
         content.add(Box.createRigidArea(new Dimension(0, 14)));
 
         // LOWER SECTION: Recent Banking Activity Card
-        RoundedCard recentActivityCard = new RoundedCard(22, CARD_WHITE, CARD_BORDER);
+        RoundedCard recentActivityCard = new RoundedCard(22, cardBg, cardBorder);
         recentActivityCard.setLayout(new BorderLayout(0, 10));
         recentActivityCard.setBorder(new EmptyBorder(16, 20, 16, 20));
         recentActivityCard.setPreferredSize(new Dimension(860, 185));
@@ -2044,10 +2264,10 @@ public class BankGUI extends JFrame {
         recentHeader.setOpaque(false);
         JLabel recentTitle = new JLabel("Recent Banking Activity");
         recentTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        recentTitle.setForeground(TEXT_DARK);
+        recentTitle.setForeground(textMain);
         JLabel recentSub = new JLabel("Latest transaction events posted across the bank registry.");
         recentSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        recentSub.setForeground(TEXT_MUTED);
+        recentSub.setForeground(textMuted);
         recentHeader.add(recentTitle);
         recentHeader.add(recentSub);
         recentActivityCard.add(recentHeader, BorderLayout.NORTH);
@@ -2065,14 +2285,9 @@ public class BankGUI extends JFrame {
 
         summaryRecentScrollPane = new JScrollPane(recentTable);
         summaryRecentScrollPane.setBorder(BorderFactory.createEmptyBorder());
-        summaryRecentScrollPane.getViewport().setBackground(CARD_WHITE);
+        summaryRecentScrollPane.getViewport().setBackground(cardBg);
 
-        summaryRecentEmptyPanel = new JPanel(new GridBagLayout());
-        summaryRecentEmptyPanel.setOpaque(false);
-        JLabel emptyLabel = new JLabel("No recent activity");
-        emptyLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        emptyLabel.setForeground(TEXT_MUTED);
-        summaryRecentEmptyPanel.add(emptyLabel);
+        summaryRecentEmptyPanel = createEmptyState("💳", "No recent activity", "Transactions recorded on any account will show here.");
         summaryRecentEmptyPanel.setVisible(false);
 
         JPanel recentCenterWrapper = new JPanel(new BorderLayout());
@@ -2096,7 +2311,7 @@ public class BankGUI extends JFrame {
     // =========================================================================
     // DATA REFRESH METHODS
     // =========================================================================
-    private void refreshAll() {
+    void refreshAll() {
         refreshDashboard();
         refreshAccountsTable();
         refreshSummary();
@@ -2140,6 +2355,9 @@ public class BankGUI extends JFrame {
                     String.format("Rs. %,.2f", a.balance)
                 });
             }
+            boolean empty = dashAccountsTableModel.getRowCount() == 0;
+            if (dashAccEmptyPanel != null) dashAccEmptyPanel.setVisible(empty);
+            if (dashAccScrollPane != null) dashAccScrollPane.setVisible(!empty);
         }
 
         if (dashRecentTxnTableModel != null) {
@@ -2148,7 +2366,7 @@ public class BankGUI extends JFrame {
             for (BankAccount a : bank.accounts.values()) {
                 for (Transaction t : a.transactions) {
                     allTxns.add(new Object[]{
-                        a.accountNo,
+                        "#" + a.accountNo,
                         a.customer.name,
                         t.type,
                         t.amount
@@ -2159,6 +2377,9 @@ public class BankGUI extends JFrame {
             for (int i = allTxns.size() - 1; i >= start; i--) {
                 dashRecentTxnTableModel.addRow(allTxns.get(i));
             }
+            boolean empty = dashRecentTxnTableModel.getRowCount() == 0;
+            if (dashTxnEmptyPanel != null) dashTxnEmptyPanel.setVisible(empty);
+            if (dashTxnScrollPane != null) dashTxnScrollPane.setVisible(!empty);
         }
     }
 
@@ -2177,14 +2398,14 @@ public class BankGUI extends JFrame {
                 a.customer.name,
                 a.customer.phone,
                 a.type,
-                String.format("%.2f", a.balance)
+                String.format("Rs. %,.2f", a.balance)
             });
         }
 
         if (accountsSummaryLabel != null) {
             accountsSummaryLabel.setText(String.format(
-                "Total: %d Accounts (%d Savings, %d Current)  •  Deposit Pool: Rs. %,.2f",
-                bank.totalAccounts(), savings, current, bank.totalBalance()
+                "Total: %d Accounts  •  %d Savings, %d Current  •  Active Registry",
+                bank.totalAccounts(), savings, current
             ));
         }
     }
@@ -2292,7 +2513,6 @@ public class BankGUI extends JFrame {
     // =========================================================================
     // UI BUILDER HELPERS
     // =========================================================================
-
     private JPanel createPageHeader(String title, String subtitle, String statusBadge) {
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
@@ -2301,7 +2521,7 @@ public class BankGUI extends JFrame {
         header.add(titleBlock, BorderLayout.WEST);
 
         if (statusBadge != null) {
-            JPanel badge = new RoundedCard(14, new Color(236, 248, 240), new Color(195, 235, 206));
+            JPanel badge = new RoundedCard(14, isDarkMode ? new Color(20, 42, 28) : new Color(236, 248, 240), isDarkMode ? new Color(34, 76, 48) : new Color(195, 235, 206));
             badge.setLayout(new FlowLayout(FlowLayout.CENTER, 12, 6));
             JLabel badgeText = new JLabel(statusBadge);
             badgeText.setFont(new Font("Segoe UI", Font.BOLD, 12));
@@ -2319,98 +2539,152 @@ public class BankGUI extends JFrame {
 
         JLabel titleLbl = new JLabel(title);
         titleLbl.setFont(new Font("Segoe UI", Font.BOLD, 23));
-        titleLbl.setForeground(TEXT_DARK);
+        titleLbl.setForeground(textMain);
 
         JLabel subLbl = new JLabel(subtitle);
         subLbl.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        subLbl.setForeground(TEXT_MUTED);
+        subLbl.setForeground(textMuted);
 
         block.add(titleLbl);
         block.add(subLbl);
         return block;
     }
 
-    private JPanel createStatCard(String title, JLabel valueLabel, String subtitle, Color start, Color end, Color border) {
+    private JPanel createStatCard(String title, JLabel valueLabel, String subtitle, Color start, Color end, Color border, String icon, int sparklineType) {
         GradientCard card = new GradientCard(20, start, end, border);
         card.setLayout(new BorderLayout());
-        card.setBorder(new EmptyBorder(14, 18, 14, 18));
+        card.setBorder(new EmptyBorder(12, 16, 12, 16));
+
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setOpaque(false);
 
         JLabel titleLbl = new JLabel(title);
         titleLbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        titleLbl.setForeground(new Color(90, 88, 82));
+        titleLbl.setForeground(isDarkMode ? textMuted : new Color(90, 88, 82));
+
+        JPanel visualPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        visualPanel.setOpaque(false);
+
+        SparklineVisual sparkline = new SparklineVisual(sparklineType, isDarkMode);
+        visualPanel.add(sparkline);
+
+        JLabel iconLabel = new JLabel(icon);
+        iconLabel.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+        visualPanel.add(iconLabel);
+
+        topBar.add(titleLbl, BorderLayout.WEST);
+        topBar.add(visualPanel, BorderLayout.EAST);
 
         valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        valueLabel.setForeground(TEXT_DARK);
+        valueLabel.setForeground(textMain);
 
         JLabel subLbl = new JLabel(subtitle);
         subLbl.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        subLbl.setForeground(new Color(125, 120, 115));
+        subLbl.setForeground(textMuted);
 
         JPanel centerPanel = new JPanel(new GridLayout(2, 1, 0, 2));
         centerPanel.setOpaque(false);
         centerPanel.add(valueLabel);
         centerPanel.add(subLbl);
 
-        card.add(titleLbl, BorderLayout.NORTH);
+        card.add(topBar, BorderLayout.NORTH);
         card.add(centerPanel, BorderLayout.CENTER);
         return card;
     }
 
-    private static JLabel createFormLabel(String text) {
+    private JPanel createEmptyState(String iconSymbol, String title, String subtitle) {
+        JPanel emptyPanel = new JPanel(new GridBagLayout());
+        emptyPanel.setOpaque(false);
+
+        JPanel emptyContent = new JPanel();
+        emptyContent.setOpaque(false);
+        emptyContent.setLayout(new BoxLayout(emptyContent, BoxLayout.Y_AXIS));
+
+        JLabel icon = new JLabel(iconSymbol);
+        icon.setFont(new Font("Segoe UI", Font.PLAIN, 32));
+        icon.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel tLbl = new JLabel(title);
+        tLbl.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        tLbl.setForeground(textMuted);
+        tLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel sLbl = new JLabel(subtitle);
+        sLbl.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        sLbl.setForeground(textMuted);
+        sLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        emptyContent.add(icon);
+        emptyContent.add(Box.createRigidArea(new Dimension(0, 6)));
+        emptyContent.add(tLbl);
+        emptyContent.add(Box.createRigidArea(new Dimension(0, 4)));
+        emptyContent.add(sLbl);
+
+        emptyPanel.add(emptyContent);
+        return emptyPanel;
+    }
+
+    private JLabel createFormLabel(String text) {
         JLabel label = new JLabel(text);
         label.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        label.setForeground(new Color(55, 57, 65));
+        label.setForeground(textMain);
+        label.setAlignmentX(Component.LEFT_ALIGNMENT);
         return label;
     }
 
-    private static JPanel createFeatureRow(String title, String desc) {
-        JPanel row = new JPanel(new BorderLayout(10, 0));
-        row.setOpaque(false);
-
-        JLabel check = new JLabel("✓");
-        check.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        check.setForeground(PRIMARY_CORAL);
-
-        JPanel textPanel = new JPanel(new GridLayout(2, 1, 0, 1));
-        textPanel.setOpaque(false);
-
-        JLabel tLbl = new JLabel(title);
-        tLbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        tLbl.setForeground(TEXT_DARK);
-
-        JLabel dLbl = new JLabel(desc);
-        dLbl.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        dLbl.setForeground(TEXT_MUTED);
-
-        textPanel.add(tLbl);
-        textPanel.add(dLbl);
-
-        row.add(check, BorderLayout.WEST);
-        row.add(textPanel, BorderLayout.CENTER);
-        return row;
-    }
-
-    private static void styleTable(JTable table) {
+    private void styleTable(JTable table) {
         table.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        table.setRowHeight(40);
+        table.setRowHeight(42);
         table.setShowGrid(false);
         table.setShowHorizontalLines(true);
-        table.setGridColor(new Color(242, 239, 233));
+        table.setGridColor(cardBorder);
         table.setIntercellSpacing(new Dimension(0, 1));
-        table.setSelectionBackground(new Color(255, 238, 232));
-        table.setSelectionForeground(TEXT_DARK);
+        table.setSelectionBackground(isDarkMode ? new Color(60, 40, 36) : new Color(255, 238, 232));
+        table.setSelectionForeground(isDarkMode ? Color.WHITE : textMain);
 
-        // header styling
+        // header styling with custom renderer for high contrast across themes
         table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
-        table.getTableHeader().setBackground(new Color(248, 246, 240));
-        table.getTableHeader().setForeground(new Color(110, 110, 118));
+        table.getTableHeader().setBackground(tableHeaderBg);
         table.getTableHeader().setPreferredSize(new Dimension(0, 38));
-        table.getTableHeader().setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 226, 218)));
+        table.getTableHeader().setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, tableHeaderBorder));
 
-        // cell padding renderer
-        DefaultTableCellRenderer renderer = new DefaultTableCellRenderer();
-        renderer.setBorder(new EmptyBorder(0, 14, 0, 14));
+        DefaultTableCellRenderer headerRenderer = new DefaultTableCellRenderer() {
+            private static final long serialVersionUID = 1L;
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object value, boolean isSelected, boolean hasFocus, int row, int col) {
+                JLabel l = (JLabel) super.getTableCellRendererComponent(t, value, isSelected, hasFocus, row, col);
+                l.setBackground(tableHeaderBg);
+                l.setForeground(isDarkMode ? new Color(210, 212, 222) : textMuted);
+                l.setFont(new Font("Segoe UI", Font.BOLD, 12));
+                l.setBorder(new EmptyBorder(0, 14, 0, 14));
+                l.setHorizontalAlignment(SwingConstants.LEFT);
+                return l;
+            }
+        };
+        table.getTableHeader().setDefaultRenderer(headerRenderer);
+
+        // cell padding & alternating row hover renderer
+        final int[] hoveredRow = {-1};
+        ThemedTableCellRenderer renderer = new ThemedTableCellRenderer(hoveredRow);
         table.setDefaultRenderer(Object.class, renderer);
+
+        table.addMouseMotionListener(new MouseAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                int row = table.rowAtPoint(e.getPoint());
+                if (row != hoveredRow[0]) {
+                    hoveredRow[0] = row;
+                    table.repaint();
+                }
+            }
+        });
+        table.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseExited(MouseEvent e) {
+                hoveredRow[0] = -1;
+                table.repaint();
+            }
+        });
     }
 
     // =========================================================================
@@ -2432,55 +2706,64 @@ public class BankGUI extends JFrame {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            GradientPaint gp = new GradientPaint(0, 0, new Color(34, 36, 44), getWidth(), getHeight(), new Color(18, 19, 24));
+            GradientPaint gp = new GradientPaint(
+                0, 0,
+                isDarkMode ? new Color(34, 38, 48) : new Color(34, 36, 44),
+                getWidth(), getHeight(),
+                isDarkMode ? new Color(18, 20, 26) : new Color(18, 19, 24)
+            );
             g2.setPaint(gp);
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
 
-            g2.setColor(new Color(64, 67, 80));
-            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 18, 18);
+            // subtle coral glow circle
+            g2.setColor(new Color(255, 117, 95, 45));
+            g2.fillOval(getWidth() - 90, -30, 120, 120);
 
-            g2.setColor(new Color(255, 120, 94, 35));
-            g2.fillOval(getWidth() - 95, -25, 120, 120);
-            g2.setColor(new Color(255, 210, 190, 20));
-            g2.fillOval(getWidth() - 65, 15, 80, 80);
+            // smart chip graphic
+            g2.setColor(new Color(230, 195, 110));
+            g2.fillRoundRect(24, 26, 38, 28, 6, 6);
+            g2.setColor(new Color(180, 145, 70));
+            g2.drawRoundRect(24, 26, 38, 28, 6, 6);
+            g2.drawLine(24, 40, 62, 40);
+            g2.drawLine(43, 26, 43, 54);
 
-            g2.setColor(new Color(225, 195, 120));
-            g2.fillRoundRect(22, 22, 34, 24, 6, 6);
-            g2.setColor(new Color(185, 155, 85));
-            g2.drawRoundRect(22, 22, 34, 24, 6, 6);
+            // wireless payment wave symbol
+            g2.setColor(new Color(255, 255, 255, 140));
+            g2.drawArc(70, 32, 16, 16, -45, 90);
+            g2.drawArc(74, 28, 24, 24, -45, 90);
 
-            g2.setColor(Color.WHITE);
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 14));
-            g2.drawString("FinBank", getWidth() - 80, 38);
+            // card number preview
+            g2.setColor(new Color(245, 245, 245));
+            g2.setFont(new Font("Consolas", Font.BOLD, 15));
+            g2.drawString("••••  ••••  ••••  " + nextAccountNo, 24, 88);
 
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 15));
-            g2.setColor(new Color(235, 235, 240));
-            g2.drawString("••••   ••••   ••••   " + nextAccountNo, 22, 90);
-
-            g2.setFont(new Font("Segoe UI", Font.PLAIN, 10));
-            g2.setColor(new Color(155, 158, 168));
-            g2.drawString("CARDHOLDER", 22, 120);
-            g2.drawString("STATUS", getWidth() - 80, 120);
+            // cardholder & bank label
+            g2.setFont(new Font("Segoe UI", Font.BOLD, 10));
+            g2.setColor(new Color(160, 165, 175));
+            g2.drawString("ACCOUNT HOLDER", 24, 114);
+            g2.drawString("FINBANK DEBIT", getWidth() - 105, 114);
 
             g2.setFont(new Font("Segoe UI", Font.BOLD, 12));
             g2.setColor(Color.WHITE);
-            g2.drawString("NEW CUSTOMER", 22, 138);
+            g2.drawString("NEW CUSTOMER", 24, 130);
 
-            g2.setColor(new Color(90, 210, 130));
-            g2.drawString("● READY", getWidth() - 80, 138);
+            // dual brand circles
+            g2.setColor(new Color(255, 117, 95, 210));
+            g2.fillOval(getWidth() - 56, 115, 22, 22);
+            g2.setColor(new Color(255, 190, 80, 190));
+            g2.fillOval(getWidth() - 42, 115, 22, 22);
 
             g2.dispose();
-            super.paintComponent(g);
         }
     }
 
-    // decorative deposit visual
-    static class DecorativeDepositVisual extends JPanel {
+    // decorative visual for deposit screen
+    class DecorativeDepositVisual extends JPanel {
         private static final long serialVersionUID = 1L;
 
         public DecorativeDepositVisual() {
-            setPreferredSize(new Dimension(320, 155));
-            setMaximumSize(new Dimension(Integer.MAX_VALUE, 160));
+            setPreferredSize(new Dimension(320, 160));
+            setMaximumSize(new Dimension(Integer.MAX_VALUE, 165));
             setOpaque(false);
         }
 
@@ -2489,51 +2772,45 @@ public class BankGUI extends JFrame {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            GradientPaint gp = new GradientPaint(0, 0, new Color(34, 38, 36), getWidth(), getHeight(), new Color(20, 24, 22));
+            GradientPaint gp = new GradientPaint(
+                0, 0,
+                isDarkMode ? new Color(20, 36, 26) : new Color(230, 246, 236),
+                getWidth(), getHeight(),
+                isDarkMode ? new Color(14, 24, 18) : new Color(210, 240, 222)
+            );
             g2.setPaint(gp);
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
 
-            g2.setColor(new Color(55, 75, 65));
-            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 18, 18);
-
-            // subtle glow
-            g2.setColor(new Color(79, 157, 105, 40));
-            g2.fillOval(getWidth() - 90, -20, 110, 110);
-
-            // arrow circle
-            g2.setColor(new Color(79, 157, 105, 50));
-            g2.fillOval(24, 26, 48, 48);
-            g2.setColor(new Color(79, 157, 105));
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 24));
-            g2.drawString("↓", 40, 58);
+            g2.setColor(SUCCESS_GREEN);
+            g2.fillOval(getWidth() / 2 - 28, 24, 56, 56);
 
             g2.setColor(Color.WHITE);
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 16));
-            g2.drawString("Deposit Engine", 86, 45);
+            g2.setFont(new Font("Segoe UI", Font.BOLD, 26));
+            g2.drawString("↓", getWidth() / 2 - 8, 62);
 
+            g2.setColor(textMain);
+            g2.setFont(new Font("Segoe UI", Font.BOLD, 15));
+            String msg = "Direct Account Inflow";
+            int w = g2.getFontMetrics().stringWidth(msg);
+            g2.drawString(msg, (getWidth() - w) / 2, 108);
+
+            g2.setColor(textMuted);
             g2.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-            g2.setColor(new Color(170, 185, 175));
-            g2.drawString("Instant credit to customer balance", 86, 65);
-
-            // bottom meter badge
-            g2.setColor(new Color(40, 48, 44));
-            g2.fillRoundRect(22, 94, getWidth() - 44, 40, 10, 10);
-            g2.setColor(new Color(79, 157, 105));
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 12));
-            g2.drawString("● AUDITED TRANSACTION LOGGING ACTIVE", 36, 119);
+            String sub = "Instant credit to customer balance";
+            int sw = g2.getFontMetrics().stringWidth(sub);
+            g2.drawString(sub, (getWidth() - sw) / 2, 128);
 
             g2.dispose();
-            super.paintComponent(g);
         }
     }
 
-    // decorative withdraw visual
-    static class DecorativeWithdrawVisual extends JPanel {
+    // decorative visual for withdrawal screen
+    class DecorativeWithdrawVisual extends JPanel {
         private static final long serialVersionUID = 1L;
 
         public DecorativeWithdrawVisual() {
-            setPreferredSize(new Dimension(320, 155));
-            setMaximumSize(new Dimension(Integer.MAX_VALUE, 160));
+            setPreferredSize(new Dimension(320, 160));
+            setMaximumSize(new Dimension(Integer.MAX_VALUE, 165));
             setOpaque(false);
         }
 
@@ -2542,49 +2819,45 @@ public class BankGUI extends JFrame {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            GradientPaint gp = new GradientPaint(0, 0, new Color(30, 36, 46), getWidth(), getHeight(), new Color(18, 22, 30));
+            GradientPaint gp = new GradientPaint(
+                0, 0,
+                isDarkMode ? new Color(42, 28, 26) : new Color(255, 240, 235),
+                getWidth(), getHeight(),
+                isDarkMode ? new Color(28, 20, 18) : new Color(255, 226, 218)
+            );
             g2.setPaint(gp);
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
 
-            g2.setColor(new Color(55, 68, 88));
-            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 18, 18);
-
-            g2.setColor(new Color(50, 120, 210, 35));
-            g2.fillOval(getWidth() - 90, -20, 110, 110);
-
-            // arrow circle
-            g2.setColor(new Color(50, 120, 210, 50));
-            g2.fillOval(24, 26, 48, 48);
-            g2.setColor(new Color(80, 150, 240));
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 24));
-            g2.drawString("↑", 40, 58);
+            g2.setColor(PRIMARY_CORAL);
+            g2.fillOval(getWidth() / 2 - 28, 24, 56, 56);
 
             g2.setColor(Color.WHITE);
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 16));
-            g2.drawString("Disbursement Gateway", 86, 45);
+            g2.setFont(new Font("Segoe UI", Font.BOLD, 26));
+            g2.drawString("↑", getWidth() / 2 - 8, 62);
 
+            g2.setColor(textMain);
+            g2.setFont(new Font("Segoe UI", Font.BOLD, 15));
+            String msg = "Secure Outflow Process";
+            int w = g2.getFontMetrics().stringWidth(msg);
+            g2.drawString(msg, (getWidth() - w) / 2, 108);
+
+            g2.setColor(textMuted);
             g2.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-            g2.setColor(new Color(170, 185, 205));
-            g2.drawString("Strict solvency & balance verification", 86, 65);
-
-            g2.setColor(new Color(36, 44, 58));
-            g2.fillRoundRect(22, 94, getWidth() - 44, 40, 10, 10);
-            g2.setColor(new Color(90, 165, 255));
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 12));
-            g2.drawString("● OVERDRAFT SHIELD VERIFIED", 36, 119);
+            String sub = "Overdraft checks & real-time debit";
+            int sw = g2.getFontMetrics().stringWidth(sub);
+            g2.drawString(sub, (getWidth() - sw) / 2, 128);
 
             g2.dispose();
-            super.paintComponent(g);
         }
     }
 
-    // decorative update visual
-    static class DecorativeUpdateVisual extends JPanel {
+    // decorative visual for update screen
+    class DecorativeUpdateVisual extends JPanel {
         private static final long serialVersionUID = 1L;
 
         public DecorativeUpdateVisual() {
-            setPreferredSize(new Dimension(320, 155));
-            setMaximumSize(new Dimension(Integer.MAX_VALUE, 160));
+            setPreferredSize(new Dimension(320, 160));
+            setMaximumSize(new Dimension(Integer.MAX_VALUE, 165));
             setOpaque(false);
         }
 
@@ -2593,48 +2866,45 @@ public class BankGUI extends JFrame {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            GradientPaint gp = new GradientPaint(0, 0, new Color(36, 32, 44), getWidth(), getHeight(), new Color(22, 19, 28));
+            GradientPaint gp = new GradientPaint(
+                0, 0,
+                isDarkMode ? new Color(34, 28, 48) : new Color(246, 238, 255),
+                getWidth(), getHeight(),
+                isDarkMode ? new Color(24, 20, 36) : new Color(236, 224, 252)
+            );
             g2.setPaint(gp);
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
 
-            g2.setColor(new Color(75, 65, 95));
-            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 18, 18);
-
-            g2.setColor(new Color(150, 110, 230, 35));
-            g2.fillOval(getWidth() - 90, -20, 110, 110);
-
-            g2.setColor(new Color(150, 110, 230, 50));
-            g2.fillOval(24, 26, 48, 48);
-            g2.setColor(new Color(185, 145, 255));
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 22));
-            g2.drawString("✎", 38, 58);
+            g2.setColor(new Color(145, 110, 225));
+            g2.fillOval(getWidth() / 2 - 28, 24, 56, 56);
 
             g2.setColor(Color.WHITE);
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 16));
-            g2.drawString("Profile Sync Registry", 86, 45);
+            g2.setFont(new Font("Segoe UI", Font.PLAIN, 24));
+            g2.drawString("✎", getWidth() / 2 - 9, 60);
 
+            g2.setColor(textMain);
+            g2.setFont(new Font("Segoe UI", Font.BOLD, 15));
+            String msg = "Synchronized Profile Sync";
+            int w = g2.getFontMetrics().stringWidth(msg);
+            g2.drawString(msg, (getWidth() - w) / 2, 108);
+
+            g2.setColor(textMuted);
             g2.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-            g2.setColor(new Color(195, 185, 215));
-            g2.drawString("Hot-reload customer telephone and name", 86, 65);
-
-            g2.setColor(new Color(45, 40, 56));
-            g2.fillRoundRect(22, 94, getWidth() - 44, 40, 10, 10);
-            g2.setColor(new Color(190, 155, 255));
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 12));
-            g2.drawString("● RE-INDEXING PROPAGATION ACTIVE", 36, 119);
+            String sub = "Instant updates across database maps";
+            int sw = g2.getFontMetrics().stringWidth(sub);
+            g2.drawString(sub, (getWidth() - sw) / 2, 128);
 
             g2.dispose();
-            super.paintComponent(g);
         }
     }
 
-    // decorative delete visual
-    static class DecorativeDeleteVisual extends JPanel {
+    // decorative visual for delete screen
+    class DecorativeDeleteVisual extends JPanel {
         private static final long serialVersionUID = 1L;
 
         public DecorativeDeleteVisual() {
-            setPreferredSize(new Dimension(320, 155));
-            setMaximumSize(new Dimension(Integer.MAX_VALUE, 160));
+            setPreferredSize(new Dimension(320, 160));
+            setMaximumSize(new Dimension(Integer.MAX_VALUE, 165));
             setOpaque(false);
         }
 
@@ -2643,109 +2913,125 @@ public class BankGUI extends JFrame {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            GradientPaint gp = new GradientPaint(0, 0, new Color(44, 30, 30), getWidth(), getHeight(), new Color(26, 18, 18));
+            GradientPaint gp = new GradientPaint(
+                0, 0,
+                isDarkMode ? new Color(46, 24, 24) : new Color(255, 238, 238),
+                getWidth(), getHeight(),
+                isDarkMode ? new Color(32, 18, 18) : new Color(254, 224, 224)
+            );
             g2.setPaint(gp);
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
 
-            g2.setColor(new Color(95, 55, 55));
-            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 18, 18);
-
-            g2.setColor(new Color(217, 92, 92, 35));
-            g2.fillOval(getWidth() - 90, -20, 110, 110);
-
-            g2.setColor(new Color(217, 92, 92, 50));
-            g2.fillOval(24, 26, 48, 48);
-            g2.setColor(new Color(255, 120, 120));
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 22));
-            g2.drawString("⚠", 38, 58);
+            g2.setColor(DANGER_RED);
+            g2.fillOval(getWidth() / 2 - 28, 24, 56, 56);
 
             g2.setColor(Color.WHITE);
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 16));
-            g2.drawString("Purge Controller", 86, 45);
+            g2.setFont(new Font("Segoe UI", Font.PLAIN, 24));
+            g2.drawString("🗑", getWidth() / 2 - 10, 60);
 
+            g2.setColor(textMain);
+            g2.setFont(new Font("Segoe UI", Font.BOLD, 15));
+            String msg = "Permanent Registry Removal";
+            int w = g2.getFontMetrics().stringWidth(msg);
+            g2.drawString(msg, (getWidth() - w) / 2, 108);
+
+            g2.setColor(textMuted);
             g2.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-            g2.setColor(new Color(215, 180, 180));
-            g2.drawString("Irreversible removal from all registries", 86, 65);
-
-            g2.setColor(new Color(56, 36, 36));
-            g2.fillRoundRect(22, 94, getWidth() - 44, 40, 10, 10);
-            g2.setColor(new Color(255, 120, 120));
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 12));
-            g2.drawString("● PERMANENT PURGE RESTRICTION ACTIVE", 36, 119);
+            String sub = "Deregisters account index & sorted tree";
+            int sw = g2.getFontMetrics().stringWidth(sub);
+            g2.drawString(sub, (getWidth() - sw) / 2, 128);
 
             g2.dispose();
-            super.paintComponent(g);
         }
     }
 
-    // rounded card panel with custom paint and border
+    // rounded card with antialiased borders and subtle fill
     static class RoundedCard extends JPanel {
         private static final long serialVersionUID = 1L;
-        private int radius;
+        private int cornerRadius;
         private Color bgColor;
         private Color borderColor;
 
-        public RoundedCard(int radius, Color bgColor, Color borderColor) {
-            this.radius = radius;
-            this.bgColor = bgColor;
-            this.borderColor = borderColor;
+        public RoundedCard(int radius, Color bg, Color border) {
+            this.cornerRadius = radius;
+            this.bgColor = bg;
+            this.borderColor = border;
             setOpaque(false);
+        }
+
+        public void setColors(Color bg, Color border) {
+            this.bgColor = bg;
+            this.borderColor = border;
+            repaint();
         }
 
         @Override
         protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(bgColor);
-            g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
+
+            if (bgColor != null) {
+                g2.setColor(bgColor);
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, cornerRadius, cornerRadius);
+            }
             if (borderColor != null) {
                 g2.setColor(borderColor);
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, radius, radius);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, cornerRadius, cornerRadius);
             }
             g2.dispose();
-            super.paintComponent(g);
         }
     }
 
-    // gradient stat card
+    // gradient card with soft pastel/tint transitions
     static class GradientCard extends JPanel {
         private static final long serialVersionUID = 1L;
-        private int radius;
+        private int cornerRadius;
         private Color startColor;
         private Color endColor;
         private Color borderColor;
 
-        public GradientCard(int radius, Color startColor, Color endColor, Color borderColor) {
-            this.radius = radius;
-            this.startColor = startColor;
-            this.endColor = endColor;
-            this.borderColor = borderColor;
+        public GradientCard(int radius, Color start, Color end, Color border) {
+            this.cornerRadius = radius;
+            this.startColor = start;
+            this.endColor = end;
+            this.borderColor = border;
             setOpaque(false);
+        }
+
+        public void setColors(Color start, Color end, Color border) {
+            this.startColor = start;
+            this.endColor = end;
+            this.borderColor = border;
+            repaint();
         }
 
         @Override
         protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
             GradientPaint gp = new GradientPaint(0, 0, startColor, getWidth(), getHeight(), endColor);
             g2.setPaint(gp);
-            g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
+            g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, cornerRadius, cornerRadius);
+
             if (borderColor != null) {
                 g2.setColor(borderColor);
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, radius, radius);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, cornerRadius, cornerRadius);
             }
             g2.dispose();
-            super.paintComponent(g);
         }
     }
 
-    // rounded modern button with hover reaction
+    // rounded modern button with hover and pressed tactile reaction
     static class ModernButton extends JButton {
         private static final long serialVersionUID = 1L;
         private Color normalColor;
         private Color hoverColor;
         private int radius;
         private boolean isHovered = false;
+        private boolean isPressed = false;
 
         public ModernButton(String text, Color normalColor, Color hoverColor, Color textColor, int radius) {
             super(text);
@@ -2769,6 +3055,17 @@ public class BankGUI extends JFrame {
                 @Override
                 public void mouseExited(MouseEvent e) {
                     isHovered = false;
+                    isPressed = false;
+                    repaint();
+                }
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    isPressed = true;
+                    repaint();
+                }
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    isPressed = false;
                     repaint();
                 }
             });
@@ -2778,15 +3075,17 @@ public class BankGUI extends JFrame {
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(isHovered ? hoverColor : normalColor);
+
+            Color bg = isPressed ? hoverColor.darker() : (isHovered ? hoverColor : normalColor);
+            g2.setColor(bg);
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
             g2.dispose();
             super.paintComponent(g);
         }
     }
 
-    // sidebar pill navigation button with glowing coral active highlight
-    static class NavButton extends JButton {
+    // sidebar navigation button with active coral highlight and hover transition
+    class NavButton extends JButton {
         private static final long serialVersionUID = 1L;
         private boolean active = false;
         private boolean hovered = false;
@@ -2839,7 +3138,7 @@ public class BankGUI extends JFrame {
                 g2.setColor(PRIMARY_CORAL);
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
             } else if (hovered) {
-                g2.setColor(new Color(36, 38, 46));
+                g2.setColor(isDarkMode ? new Color(26, 28, 36) : new Color(36, 38, 46));
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
             }
 
@@ -2848,16 +3147,20 @@ public class BankGUI extends JFrame {
         }
     }
 
-    // custom text field with focus border highlight
-    static class ModernTextField extends JTextField {
+    // custom text field with focus ring highlight
+    class ModernTextField extends JTextField {
         private static final long serialVersionUID = 1L;
         private boolean isFocused = false;
 
         public ModernTextField(int columns) {
             super(columns);
             setFont(new Font("Segoe UI", Font.PLAIN, 14));
-            setBackground(Color.WHITE);
+            setBackground(inputBg);
+            setForeground(textMain);
+            setCaretColor(textMain);
             setPreferredSize(new Dimension(getPreferredSize().width, 42));
+            setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+            setAlignmentX(Component.LEFT_ALIGNMENT);
             updateBorder();
 
             addFocusListener(new FocusAdapter() {
@@ -2875,37 +3178,70 @@ public class BankGUI extends JFrame {
         }
 
         private void updateBorder() {
-            Color borderColor = isFocused ? PRIMARY_CORAL : new Color(225, 220, 212);
+            Color borderColor = isFocused ? PRIMARY_CORAL : inputBorder;
             setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(borderColor, 1, true),
-                BorderFactory.createEmptyBorder(8, 14, 8, 14)
+                BorderFactory.createLineBorder(borderColor, isFocused ? 2 : 1, true),
+                BorderFactory.createEmptyBorder(isFocused ? 7 : 8, 14, isFocused ? 7 : 8, 14)
             ));
         }
     }
 
-    // custom cell renderer for account type badges
-    static class AccountTypeBadgeRenderer extends DefaultTableCellRenderer {
+    // themed table cell renderer with alternating row and hover highlight
+    class ThemedTableCellRenderer extends DefaultTableCellRenderer {
+        private static final long serialVersionUID = 1L;
+        private final int[] hoveredRow;
+
+        public ThemedTableCellRenderer(int[] hoveredRow) {
+            this.hoveredRow = hoveredRow;
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int col) {
+            JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
+            label.setBorder(new EmptyBorder(0, 14, 0, 14));
+            label.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+
+            if (isSelected) {
+                label.setBackground(table.getSelectionBackground());
+                label.setForeground(table.getSelectionForeground());
+            } else if (hoveredRow != null && row == hoveredRow[0]) {
+                label.setBackground(tableRowHover);
+                label.setForeground(textMain);
+            } else {
+                label.setBackground(row % 2 == 0 ? cardBg : tableRowAlt);
+                label.setForeground(textMain);
+            }
+            return label;
+        }
+    }
+
+    // custom cell renderer for account type badges with colored pills
+    class AccountTypeBadgeRenderer extends DefaultTableCellRenderer {
         private static final long serialVersionUID = 1L;
 
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int col) {
             JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
             label.setBorder(new EmptyBorder(0, 14, 0, 14));
+
             if (!isSelected) {
                 String val = value != null ? value.toString() : "";
                 if ("Savings".equalsIgnoreCase(val)) {
-                    label.setForeground(new Color(118, 75, 185));
+                    label.setText("●  Savings");
+                    label.setForeground(isDarkMode ? new Color(195, 165, 255) : new Color(118, 75, 185));
                 } else {
-                    label.setForeground(new Color(185, 120, 30));
+                    label.setText("●  Current");
+                    label.setForeground(isDarkMode ? new Color(255, 195, 95) : new Color(185, 120, 30));
                 }
                 label.setFont(new Font("Segoe UI", Font.BOLD, 12));
+                label.setBackground(row % 2 == 0 ? cardBg : tableRowAlt);
             }
             return label;
         }
     }
 
     // custom cell renderer for deposit/withdraw transaction types
-    static class TransactionTypeRenderer extends DefaultTableCellRenderer {
+    class TransactionTypeRenderer extends DefaultTableCellRenderer {
         private static final long serialVersionUID = 1L;
 
         @Override
@@ -2914,21 +3250,22 @@ public class BankGUI extends JFrame {
             label.setBorder(new EmptyBorder(0, 14, 0, 14));
             if (!isSelected) {
                 String val = value != null ? value.toString() : "";
-                if ("Deposit".equalsIgnoreCase(val)) {
-                    label.setText("↓ Deposit");
+                if (val.contains("Deposit") || "Deposit".equalsIgnoreCase(val)) {
+                    label.setText("↓  Deposit");
                     label.setForeground(SUCCESS_GREEN);
                 } else {
-                    label.setText("↑ Withdrawal");
+                    label.setText("↑  Withdrawal");
                     label.setForeground(DANGER_RED);
                 }
                 label.setFont(new Font("Segoe UI", Font.BOLD, 12));
+                label.setBackground(row % 2 == 0 ? cardBg : tableRowAlt);
             }
             return label;
         }
     }
 
     // custom cell renderer for transaction amounts with + / -
-    static class AmountColorRenderer extends DefaultTableCellRenderer {
+    class AmountColorRenderer extends DefaultTableCellRenderer {
         private static final long serialVersionUID = 1L;
 
         @Override
@@ -2937,21 +3274,38 @@ public class BankGUI extends JFrame {
             label.setBorder(new EmptyBorder(0, 14, 0, 14));
             if (!isSelected && value != null) {
                 double amt = 0;
+                String valStr = value.toString().replace("+", "").replace("-", "").replace("Rs.", "").replace(",", "").trim();
                 try {
-                    amt = Double.parseDouble(value.toString().replace("Rs.", "").replace(",", "").trim());
+                    amt = Double.parseDouble(valStr);
                 } catch (Exception ignored) {}
 
-                Object typeObj = table.getValueAt(row, 0);
-                String type = typeObj != null ? typeObj.toString() : "";
+                String type = "";
+                for (int c = 0; c < table.getColumnCount(); c++) {
+                    Object cellVal = table.getValueAt(row, c);
+                    if (cellVal != null) {
+                        String s = cellVal.toString().toLowerCase();
+                        if (s.contains("deposit")) {
+                            type = "Deposit";
+                            break;
+                        } else if (s.contains("withdraw")) {
+                            type = "Withdrawal";
+                            break;
+                        }
+                    }
+                }
 
-                if (type.contains("Deposit") || type.contains("↓")) {
+                if (type.equalsIgnoreCase("Deposit")) {
                     label.setText(String.format("+ Rs. %,.2f", amt));
                     label.setForeground(SUCCESS_GREEN);
-                } else {
+                } else if (type.equalsIgnoreCase("Withdrawal")) {
                     label.setText(String.format("- Rs. %,.2f", amt));
                     label.setForeground(DANGER_RED);
+                } else {
+                    label.setText(String.format("Rs. %,.2f", amt));
+                    label.setForeground(textMain);
                 }
                 label.setFont(new Font("Segoe UI", Font.BOLD, 13));
+                label.setBackground(row % 2 == 0 ? cardBg : tableRowAlt);
             }
             return label;
         }
@@ -2962,10 +3316,11 @@ public class BankGUI extends JFrame {
         private static final long serialVersionUID = 1L;
         private double progress = 0.0;
         private final Color barColor;
-        private final Color trackColor = new Color(240, 237, 232);
+        private final Color trackColor;
 
-        public RoundedProgressBar(Color barColor) {
+        public RoundedProgressBar(Color barColor, Color trackColor) {
             this.barColor = barColor;
+            this.trackColor = trackColor;
             setOpaque(false);
             setPreferredSize(new Dimension(200, 10));
             setMaximumSize(new Dimension(Integer.MAX_VALUE, 10));
@@ -2999,6 +3354,61 @@ public class BankGUI extends JFrame {
                 g2.setColor(barColor);
                 g2.fillRoundRect(0, 0, fillWidth, height, arc, arc);
             }
+            g2.dispose();
+        }
+    }
+
+    // decorative mini sparkline curve for statistic cards (pure Swing 2D graphics)
+    static class SparklineVisual extends JPanel {
+        private static final long serialVersionUID = 1L;
+        private final int type;
+        private final boolean dark;
+
+        public SparklineVisual(int type, boolean dark) {
+            this.type = type;
+            this.dark = dark;
+            setPreferredSize(new Dimension(36, 16));
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            int w = getWidth();
+            int h = getHeight();
+
+            Color strokeColor;
+            if (type == 0) { // Balance
+                strokeColor = new Color(255, 120, 94, 200);
+            } else if (type == 1) { // Accounts
+                strokeColor = new Color(90, 150, 230, 200);
+            } else if (type == 2) { // Savings
+                strokeColor = new Color(150, 110, 220, 200);
+            } else { // Current
+                strokeColor = new Color(230, 160, 50, 200);
+            }
+
+            GeneralPath path = new GeneralPath();
+            path.moveTo(0, h - 3);
+
+            if (type == 0) {
+                path.curveTo(w * 0.3, h - 3, w * 0.6, h * 0.4, w - 2, 2);
+            } else if (type == 1) {
+                path.curveTo(w * 0.25, h * 0.7, w * 0.5, h * 0.2, w - 2, h * 0.35);
+            } else if (type == 2) {
+                path.curveTo(w * 0.35, h * 0.8, w * 0.7, h * 0.4, w - 2, 3);
+            } else {
+                path.curveTo(w * 0.3, h * 0.3, w * 0.65, h * 0.8, w - 2, 3);
+            }
+
+            g2.setStroke(new BasicStroke(1.8f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2.setColor(strokeColor);
+            g2.draw(path);
+
+            g2.fillOval(w - 4, 1, 4, 4);
             g2.dispose();
         }
     }
