@@ -859,40 +859,54 @@ public class BankGUI extends JFrame {
         leftTitle.setForeground(textMain);
         leftTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel leftDesc = new JLabel("<html>Register customer details, assign account category, and initialize secure banking ledger records with instant activation.</html>");
+        JLabel leftDesc = new JLabel("<html>Register customer details and initialize a new banking account.</html>");
         leftDesc.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         leftDesc.setForeground(textMuted);
         leftDesc.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         leftTopPanel.add(badgePill);
-        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 12)));
+        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 10)));
         leftTopPanel.add(leftTitle);
-        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 8)));
+        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 6)));
         leftTopPanel.add(leftDesc);
 
         leftCard.add(leftTopPanel, BorderLayout.NORTH);
 
+        // center: compact horizontal credit card visual and features list
+        JPanel leftCenterPanel = new JPanel();
+        leftCenterPanel.setOpaque(false);
+        leftCenterPanel.setLayout(new BoxLayout(leftCenterPanel, BoxLayout.Y_AXIS));
+
         decorativeCard = new DecorativeFinBankCard();
-        leftCard.add(decorativeCard, BorderLayout.CENTER);
+        decorativeCard.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JPanel leftBottomPanel = new JPanel();
+        leftCenterPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        leftCenterPanel.add(decorativeCard);
+        leftCenterPanel.add(Box.createRigidArea(new Dimension(0, 14)));
+
+        JPanel featuresPanel = new JPanel(new GridLayout(3, 1, 0, 8));
+        featuresPanel.setOpaque(false);
+        featuresPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        featuresPanel.add(createFeatureRow("Instant Account Allocation", "Sequential account number auto-assigned immediately."));
+        featuresPanel.add(createFeatureRow("Multi-Tier Portfolios", "Support for Savings and Current accounts."));
+        featuresPanel.add(createFeatureRow("Audited Ledger Trail", "Opening deposit recorded in transaction history."));
+
+        leftCenterPanel.add(featuresPanel);
+        leftCenterPanel.add(Box.createVerticalGlue());
+        leftCard.add(leftCenterPanel, BorderLayout.CENTER);
+
+        JPanel leftBottomPanel = new JPanel(new BorderLayout());
         leftBottomPanel.setOpaque(false);
-        leftBottomPanel.setLayout(new BoxLayout(leftBottomPanel, BoxLayout.Y_AXIS));
 
+        RoundedCard nextNoBadge = new RoundedCard(14, isDarkMode ? new Color(32, 28, 28) : Color.WHITE, peachBorder);
+        nextNoBadge.setLayout(new FlowLayout(FlowLayout.LEFT, 14, 8));
         createAccNextNoLabel = new JLabel("Next Account Number: #" + nextAccountNo);
-        createAccNextNoLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        createAccNextNoLabel.setForeground(textMain);
-        createAccNextNoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        createAccNextNoLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        createAccNextNoLabel.setForeground(PRIMARY_CORAL);
+        nextNoBadge.add(createAccNextNoLabel);
 
-        JLabel leftTip = new JLabel("Auto-assigned sequentially • Indexed in synchronized HashMap & TreeMap");
-        leftTip.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        leftTip.setForeground(textMuted);
-        leftTip.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        leftBottomPanel.add(createAccNextNoLabel);
-        leftBottomPanel.add(Box.createRigidArea(new Dimension(0, 4)));
-        leftBottomPanel.add(leftTip);
-
+        leftBottomPanel.add(nextNoBadge, BorderLayout.WEST);
         leftCard.add(leftBottomPanel, BorderLayout.SOUTH);
 
         // RIGHT COLUMN: Clean Account Form
@@ -927,6 +941,17 @@ public class BankGUI extends JFrame {
         typeCombo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
         typeCombo.setPreferredSize(new Dimension(200, 42));
         typeCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
+        typeCombo.setRenderer(new DefaultListCellRenderer() {
+            private static final long serialVersionUID = 1L;
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                JLabel l = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                l.setBorder(new EmptyBorder(6, 12, 6, 12));
+                l.setBackground(isSelected ? (isDarkMode ? new Color(55, 45, 40) : new Color(255, 235, 228)) : inputBg);
+                l.setForeground(isSelected ? PRIMARY_CORAL : textMain);
+                return l;
+            }
+        });
 
         ModernTextField depositField = new ModernTextField(20);
 
@@ -2624,6 +2649,33 @@ public class BankGUI extends JFrame {
         return emptyPanel;
     }
 
+    private JPanel createFeatureRow(String title, String desc) {
+        JPanel row = new JPanel(new BorderLayout(10, 0));
+        row.setOpaque(false);
+
+        JLabel check = new JLabel("✓");
+        check.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        check.setForeground(PRIMARY_CORAL);
+
+        JPanel textPanel = new JPanel(new GridLayout(2, 1, 0, 1));
+        textPanel.setOpaque(false);
+
+        JLabel tLbl = new JLabel(title);
+        tLbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        tLbl.setForeground(textMain);
+
+        JLabel dLbl = new JLabel(desc);
+        dLbl.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        dLbl.setForeground(textMuted);
+
+        textPanel.add(tLbl);
+        textPanel.add(dLbl);
+
+        row.add(check, BorderLayout.WEST);
+        row.add(textPanel, BorderLayout.CENTER);
+        return row;
+    }
+
     private JLabel createFormLabel(String text) {
         JLabel label = new JLabel(text);
         label.setFont(new Font("Segoe UI", Font.BOLD, 13));
@@ -2696,62 +2748,115 @@ public class BankGUI extends JFrame {
         private static final long serialVersionUID = 1L;
 
         public DecorativeFinBankCard() {
-            setPreferredSize(new Dimension(320, 160));
-            setMaximumSize(new Dimension(Integer.MAX_VALUE, 165));
+            setPreferredSize(new Dimension(320, 180));
+            setMaximumSize(new Dimension(350, 190));
+            setMinimumSize(new Dimension(280, 160));
             setOpaque(false);
         }
 
         @Override
         protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
+            int availableW = getWidth();
+            int availableH = getHeight();
+            int cardW = Math.min(availableW - 8, 320);
+            int cardH = Math.min(availableH - 8, (int) (cardW * 0.5625)); // realistic 16:9 aspect ratio
+            if (cardH > 180) {
+                cardH = 180;
+                cardW = (int) (cardH / 0.5625);
+            }
+            int cardX = 0;
+            int cardY = (availableH - cardH) / 2;
+
+            // 1. Subtle card drop shadow
+            g2.setColor(new Color(0, 0, 0, 35));
+            g2.fillRoundRect(cardX + 2, cardY + 5, cardW, cardH, 16, 16);
+            g2.setColor(new Color(0, 0, 0, 20));
+            g2.fillRoundRect(cardX + 1, cardY + 2, cardW, cardH, 16, 16);
+
+            // 2. Realistic dark charcoal/black card surface with subtle gradient depth
             GradientPaint gp = new GradientPaint(
-                0, 0,
-                isDarkMode ? new Color(34, 38, 48) : new Color(34, 36, 44),
-                getWidth(), getHeight(),
-                isDarkMode ? new Color(18, 20, 26) : new Color(18, 19, 24)
+                cardX, cardY,
+                new Color(36, 38, 46),
+                cardX + cardW, cardY + cardH,
+                new Color(18, 19, 24)
             );
             g2.setPaint(gp);
-            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
+            g2.fillRoundRect(cardX, cardY, cardW, cardH, 16, 16);
 
-            // subtle coral glow circle
-            g2.setColor(new Color(255, 117, 95, 45));
-            g2.fillOval(getWidth() - 90, -30, 120, 120);
+            // Crisp border
+            g2.setColor(new Color(68, 72, 85));
+            g2.drawRoundRect(cardX, cardY, cardW - 1, cardH - 1, 16, 16);
 
-            // smart chip graphic
-            g2.setColor(new Color(230, 195, 110));
-            g2.fillRoundRect(24, 26, 38, 28, 6, 6);
-            g2.setColor(new Color(180, 145, 70));
-            g2.drawRoundRect(24, 26, 38, 28, 6, 6);
-            g2.drawLine(24, 40, 62, 40);
-            g2.drawLine(43, 26, 43, 54);
+            // 3. Subtle background decorative glow circles in the corner
+            g2.setColor(new Color(255, 117, 95, 25));
+            g2.fillOval(cardX + cardW - 100, cardY - 25, 120, 120);
+            g2.setColor(new Color(255, 200, 150, 15));
+            g2.fillOval(cardX + cardW - 70, cardY + 18, 80, 80);
 
-            // wireless payment wave symbol
-            g2.setColor(new Color(255, 255, 255, 140));
-            g2.drawArc(70, 32, 16, 16, -45, 90);
-            g2.drawArc(74, 28, 24, 24, -45, 90);
+            // 4. Gold EMV chip (top left)
+            int chipX = cardX + 20;
+            int chipY = cardY + 18;
+            g2.setColor(new Color(228, 192, 108));
+            g2.fillRoundRect(chipX, chipY, 34, 25, 6, 6);
+            g2.setColor(new Color(175, 142, 68));
+            g2.drawRoundRect(chipX, chipY, 34, 25, 6, 6);
+            g2.drawLine(chipX, chipY + 12, chipX + 34, chipY + 12);
+            g2.drawLine(chipX + 12, chipY, chipX + 12, chipY + 25);
+            g2.drawLine(chipX + 22, chipY, chipX + 22, chipY + 25);
 
-            // card number preview
-            g2.setColor(new Color(245, 245, 245));
+            // Wireless wave symbol next to chip
+            g2.setColor(new Color(255, 255, 255, 120));
+            g2.drawArc(chipX + 40, chipY + 4, 14, 16, -45, 90);
+            g2.drawArc(chipX + 44, chipY + 2, 20, 20, -45, 90);
+
+            // 5. FinBank branding (top right)
+            g2.setColor(Color.WHITE);
+            g2.setFont(new Font("Segoe UI", Font.BOLD, 15));
+            String brand = "FinBank";
+            FontMetrics fm = g2.getFontMetrics();
+            g2.drawString(brand, cardX + cardW - fm.stringWidth(brand) - 20, cardY + 34);
+
+            // 6. Card number (centered vertically in card)
             g2.setFont(new Font("Consolas", Font.BOLD, 15));
-            g2.drawString("••••  ••••  ••••  " + nextAccountNo, 24, 88);
+            g2.setColor(new Color(240, 242, 248));
+            g2.drawString("••••   ••••   ••••   " + nextAccountNo, cardX + 20, cardY + (int) (cardH * 0.58));
 
-            // cardholder & bank label
-            g2.setFont(new Font("Segoe UI", Font.BOLD, 10));
-            g2.setColor(new Color(160, 165, 175));
-            g2.drawString("ACCOUNT HOLDER", 24, 114);
-            g2.drawString("FINBANK DEBIT", getWidth() - 105, 114);
+            // 7. Bottom labels and values
+            int bottomLabelY = cardY + cardH - 32;
+            int bottomValueY = cardY + cardH - 16;
+
+            // Left side: CARDHOLDER / NEW CUSTOMER
+            g2.setFont(new Font("Segoe UI", Font.PLAIN, 9));
+            g2.setColor(new Color(150, 154, 168));
+            g2.drawString("CARDHOLDER", cardX + 20, bottomLabelY);
 
             g2.setFont(new Font("Segoe UI", Font.BOLD, 12));
             g2.setColor(Color.WHITE);
-            g2.drawString("NEW CUSTOMER", 24, 130);
+            g2.drawString("NEW CUSTOMER", cardX + 20, bottomValueY);
 
-            // dual brand circles
-            g2.setColor(new Color(255, 117, 95, 210));
-            g2.fillOval(getWidth() - 56, 115, 22, 22);
-            g2.setColor(new Color(255, 190, 80, 190));
-            g2.fillOval(getWidth() - 42, 115, 22, 22);
+            // Right side: STATUS / ● READY
+            String statusLabel = "STATUS";
+            String statusVal = "● READY";
+            g2.setFont(new Font("Segoe UI", Font.PLAIN, 9));
+            int statusX = cardX + cardW - g2.getFontMetrics().stringWidth(statusLabel) - 20;
+            g2.setColor(new Color(150, 154, 168));
+            g2.drawString(statusLabel, statusX, bottomLabelY);
+
+            g2.setFont(new Font("Segoe UI", Font.BOLD, 11));
+            g2.setColor(new Color(80, 215, 130)); // green status
+            int statusValX = cardX + cardW - g2.getFontMetrics().stringWidth(statusVal) - 20;
+            g2.drawString(statusVal, statusValX, bottomValueY);
+
+            // Small decorative network overlapping circles in corner
+            g2.setColor(new Color(255, 117, 95, 190));
+            g2.fillOval(cardX + cardW - 52, cardY + cardH - 44, 18, 18);
+            g2.setColor(new Color(255, 195, 90, 170));
+            g2.fillOval(cardX + cardW - 40, cardY + cardH - 44, 18, 18);
 
             g2.dispose();
         }
