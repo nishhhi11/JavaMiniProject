@@ -941,14 +941,40 @@ public class BankGUI extends JFrame {
         typeCombo.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
         typeCombo.setPreferredSize(new Dimension(200, 42));
         typeCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
+        typeCombo.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(inputBorder, 1, true),
+            BorderFactory.createEmptyBorder(2, 6, 2, 6)
+        ));
+        typeCombo.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
+            @Override
+            protected JButton createArrowButton() {
+                javax.swing.plaf.basic.BasicArrowButton btn = new javax.swing.plaf.basic.BasicArrowButton(
+                    SwingConstants.SOUTH, inputBg, inputBorder, textMain, inputBg
+                );
+                btn.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 8));
+                return btn;
+            }
+            @Override
+            public void paintCurrentValueBackground(Graphics g, Rectangle bounds, boolean hasFocus) {
+                g.setColor(inputBg);
+                g.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+            }
+        });
         typeCombo.setRenderer(new DefaultListCellRenderer() {
             private static final long serialVersionUID = 1L;
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                 JLabel l = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                l.setOpaque(true);
                 l.setBorder(new EmptyBorder(6, 12, 6, 12));
-                l.setBackground(isSelected ? (isDarkMode ? new Color(55, 45, 40) : new Color(255, 235, 228)) : inputBg);
-                l.setForeground(isSelected ? PRIMARY_CORAL : textMain);
+                l.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+                if (isSelected) {
+                    l.setBackground(isDarkMode ? new Color(55, 45, 40) : new Color(255, 235, 228));
+                    l.setForeground(PRIMARY_CORAL);
+                } else {
+                    l.setBackground(isDarkMode ? cardBg : Color.WHITE);
+                    l.setForeground(textMain);
+                }
                 return l;
             }
         });
