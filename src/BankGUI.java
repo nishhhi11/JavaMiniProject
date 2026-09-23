@@ -2023,31 +2023,46 @@ public class BankGUI extends JFrame {
         JPanel panel = new JPanel(new BorderLayout(0, 16));
         panel.setOpaque(false);
 
-        panel.add(createHeaderTitleBlock("Transaction Statement", "View complete transaction history for an account."), BorderLayout.NORTH);
+        panel.add(
+                createHeaderTitleBlock(
+                        "Account Statement",
+                        "View the complete transaction history of the selected account."
+                ),
+                BorderLayout.NORTH
+        );
 
         JPanel content = new JPanel(new BorderLayout(0, 16));
         content.setOpaque(false);
 
-        // top query card with search controls and neat customer info strip
+        // account selection card
         RoundedCard queryCard = new RoundedCard(22, cardBg, cardBorder);
         queryCard.setLayout(new BorderLayout(0, 10));
         queryCard.setBorder(new EmptyBorder(16, 20, 16, 20));
 
-        // row 1: search input and action button
         JPanel searchRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 14, 0));
         searchRow.setOpaque(false);
 
         txnAccNoField = new ModernTextField(16);
-        txnViewBtn = new ModernButton("View Statement", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 14);
+        txnViewBtn = new ModernButton(
+                "View Statement",
+                PRIMARY_CORAL,
+                PRIMARY_CORAL_HOVER,
+                Color.WHITE,
+                14
+        );
 
-        searchRow.add(createFormLabel("Enter Account Number:"));
+        searchRow.add(createFormLabel("Account Number:"));
         searchRow.add(txnAccNoField);
         searchRow.add(txnViewBtn);
 
         queryCard.add(searchRow, BorderLayout.NORTH);
 
-        // row 2: neat customer info strip displayed beside/below search controls
-        txnCustomerChipPanel = new RoundedCard(12, isDarkMode ? new Color(26, 28, 36) : new Color(248, 246, 242), cardBorder);
+        // customer information strip
+        txnCustomerChipPanel = new RoundedCard(
+                12,
+                isDarkMode ? new Color(26, 28, 36) : new Color(248, 246, 242),
+                cardBorder
+        );
         txnCustomerChipPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 24, 6));
         txnCustomerChipPanel.setBorder(new EmptyBorder(4, 14, 4, 14));
         txnCustomerChipPanel.setVisible(false);
@@ -2076,12 +2091,11 @@ public class BankGUI extends JFrame {
         queryCard.add(txnCustomerChipPanel, BorderLayout.CENTER);
         content.add(queryCard, BorderLayout.NORTH);
 
-        // transaction records card
+        // statement table card
         RoundedCard tableCard = new RoundedCard(22, cardBg, cardBorder);
         tableCard.setLayout(new BorderLayout(0, 14));
-        tableCard.setBorder(new EmptyBorder(22, 24, 22, 24));
+        tableCard.setBorder(new EmptyBorder(22, 24, 18, 24));
 
-        // card header with title on left and live account summary on right
         JPanel tableHeaderPanel = new JPanel(new BorderLayout());
         tableHeaderPanel.setOpaque(false);
 
@@ -2097,12 +2111,11 @@ public class BankGUI extends JFrame {
         tableHeaderPanel.add(txnHeaderStatsLabel, BorderLayout.EAST);
         tableCard.add(tableHeaderPanel, BorderLayout.NORTH);
 
-        // center wrapper for empty state or table using CardLayout
         CardLayout txnCardLayout = new CardLayout();
         JPanel centerCards = new JPanel(txnCardLayout);
         centerCards.setOpaque(false);
 
-        // empty state view
+        // empty state
         txnEmptyStatePanel = new JPanel(new GridBagLayout());
         txnEmptyStatePanel.setOpaque(false);
 
@@ -2119,7 +2132,9 @@ public class BankGUI extends JFrame {
         txnEmptyStateTitle.setForeground(textMuted);
         txnEmptyStateTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        txnEmptyStateSubtitle = new JLabel("Search for an account above to view its transaction history.");
+        txnEmptyStateSubtitle = new JLabel(
+                "Search for an account above to view its transaction history."
+        );
         txnEmptyStateSubtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         txnEmptyStateSubtitle.setForeground(textMuted);
         txnEmptyStateSubtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -2132,17 +2147,40 @@ public class BankGUI extends JFrame {
 
         txnEmptyStatePanel.add(emptyContent);
 
-        // transactions JTable
-        String[] cols = {"Transaction Type", "Amount (Rs.)"};
+        // full statement columns
+        String[] cols = {
+                "Transaction ID",
+                "Type",
+                "Amount (Rs.)",
+                "From",
+                "To",
+                "Status",
+                "Date & Time"
+        };
+
         txnTableModel = new DefaultTableModel(cols, 0) {
             @Override
-            public boolean isCellEditable(int row, int col) { return false; }
+            public boolean isCellEditable(int row, int col) {
+                return false;
+            }
         };
 
         JTable table = new JTable(txnTableModel);
         styleTable(table);
-        table.getColumnModel().getColumn(0).setCellRenderer(new TransactionTypeRenderer());
-        table.getColumnModel().getColumn(1).setCellRenderer(new AmountColorRenderer());
+
+        table.getColumnModel().getColumn(1)
+                .setCellRenderer(new TransactionTypeRenderer());
+
+        table.getColumnModel().getColumn(2)
+                .setCellRenderer(new AmountColorRenderer());
+
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+
+        int[] widths = {105, 135, 105, 100, 100, 90, 165};
+
+        for (int i = 0; i < widths.length; i++) {
+            table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
+        }
 
         txnScrollPane = new JScrollPane(table);
         txnScrollPane.setBorder(BorderFactory.createEmptyBorder());
@@ -2150,82 +2188,395 @@ public class BankGUI extends JFrame {
 
         centerCards.add(txnEmptyStatePanel, "EMPTY");
         centerCards.add(txnScrollPane, "TABLE");
+
         txnCardLayout.show(centerCards, "EMPTY");
 
         tableCard.add(centerCards, BorderLayout.CENTER);
+
+        // receipt button
+        JPanel receiptPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        receiptPanel.setOpaque(false);
+
+        ModernButton receiptButton = new ModernButton(
+                "View Receipt",
+                new Color(120, 92, 190),
+                new Color(100, 76, 165),
+                Color.WHITE,
+                13
+        );
+
+        receiptPanel.add(receiptButton);
+        tableCard.add(receiptPanel, BorderLayout.SOUTH);
+
         content.add(tableCard, BorderLayout.CENTER);
 
+        // view statement button
         txnViewBtn.addActionListener(e -> {
+
             try {
-                int accNo = Integer.parseInt(txnAccNoField.getText().trim());
+
+                int accNo;
+
+                // use logged-in account automatically when available
+                if (txnAccNoField.getText().trim().isEmpty()
+                        && loggedInAccount != null) {
+
+                    accNo = loggedInAccount.accountNo;
+                    txnAccNoField.setText(String.valueOf(accNo));
+
+                } else {
+
+                    accNo = Integer.parseInt(
+                            txnAccNoField.getText().trim()
+                    );
+                }
+
                 BankAccount acc = bank.search(accNo);
 
                 txnTableModel.setRowCount(0);
 
                 if (acc == null) {
+
                     txnCustomerChipPanel.setVisible(true);
-                    txnCustomerNameLabel.setText("Account #" + accNo + " not found.");
+
+                    txnCustomerNameLabel.setText(
+                            "Account #" + accNo + " not found."
+                    );
                     txnCustomerNameLabel.setForeground(DANGER_RED);
+
                     txnCustomerPhoneLabel.setText("");
                     txnCustomerTypeLabel.setText("");
                     txnCustomerBalanceLabel.setText("");
                     txnHeaderStatsLabel.setText("");
 
                     txnEmptyStateTitle.setText("Account Not Found");
-                    txnEmptyStateSubtitle.setText("Please check the account number and try again.");
+                    txnEmptyStateSubtitle.setText(
+                            "Please check the account number and try again."
+                    );
+
                     txnCardLayout.show(centerCards, "EMPTY");
                     return;
                 }
 
-                // display customer information neatly
+                // display customer information
                 txnCustomerChipPanel.setVisible(true);
                 txnCustomerNameLabel.setForeground(textMain);
-                txnCustomerNameLabel.setText("👤 " + acc.customer.name);
-                txnCustomerPhoneLabel.setText("📞 " + acc.customer.phone);
-                txnCustomerTypeLabel.setText("🏷 " + acc.type);
-                txnCustomerBalanceLabel.setText("💰 Rs. " + String.format("%,.2f", acc.balance));
 
-                // update right header
-                txnHeaderStatsLabel.setText(String.format("Account Type: %s   •   Current Balance: Rs. %,.2f", acc.type, acc.balance));
+                txnCustomerNameLabel.setText(
+                        "👤 " + acc.customer.name
+                );
+
+                txnCustomerPhoneLabel.setText(
+                        "📞 " + acc.customer.phone
+                );
+
+                txnCustomerTypeLabel.setText(
+                        "🏷 " + acc.type
+                );
+
+                txnCustomerBalanceLabel.setText(
+                        "💰 Rs. " + String.format(
+                                "%,.2f",
+                                acc.balance
+                        )
+                );
+
+                txnHeaderStatsLabel.setText(
+                        String.format(
+                                "Account Type: %s   •   Current Balance: Rs. %,.2f",
+                                acc.type,
+                                acc.balance
+                        )
+                );
+
                 txnHeaderStatsLabel.setForeground(textMain);
 
                 if (acc.transactions.isEmpty()) {
-                    txnEmptyStateTitle.setText("No transactions yet");
-                    txnEmptyStateSubtitle.setText("Transactions for this account will appear here.");
+
+                    txnEmptyStateTitle.setText(
+                            "No transactions yet"
+                    );
+
+                    txnEmptyStateSubtitle.setText(
+                            "Transactions for this account will appear here."
+                    );
+
                     txnCardLayout.show(centerCards, "EMPTY");
+
                 } else {
+
                     for (Transaction t : acc.transactions) {
-                        txnTableModel.addRow(new Object[]{t.type, t.amount});
+
+                        String dateTime = t.dateTime == null
+                                ? "-"
+                                : t.dateTime.format(
+                                DateTimeFormatter.ofPattern(
+                                        "dd-MM-yyyy HH:mm"
+                                )
+                        );
+
+                        txnTableModel.addRow(
+                                new Object[]{
+                                        t.id,
+                                        t.type,
+                                        t.amount,
+                                        t.from,
+                                        t.to,
+                                        t.status,
+                                        dateTime
+                                }
+                        );
                     }
+
                     txnCardLayout.show(centerCards, "TABLE");
                 }
+
             } catch (NumberFormatException ex) {
+
                 txnCustomerChipPanel.setVisible(true);
-                txnCustomerNameLabel.setText("Please enter a valid numeric account number.");
+
+                txnCustomerNameLabel.setText(
+                        "Please enter a valid numeric account number."
+                );
                 txnCustomerNameLabel.setForeground(DANGER_RED);
+
                 txnCustomerPhoneLabel.setText("");
                 txnCustomerTypeLabel.setText("");
                 txnCustomerBalanceLabel.setText("");
                 txnHeaderStatsLabel.setText("");
-                txnEmptyStateTitle.setText("Invalid Account Number");
-                txnEmptyStateSubtitle.setText("Please enter digits only.");
+
+                txnEmptyStateTitle.setText(
+                        "Invalid Account Number"
+                );
+
+                txnEmptyStateSubtitle.setText(
+                        "Please enter digits only."
+                );
+
                 txnCardLayout.show(centerCards, "EMPTY");
             }
+
             txnCustomerChipPanel.revalidate();
             txnCustomerChipPanel.repaint();
+
             queryCard.revalidate();
             queryCard.repaint();
+
             tableCard.revalidate();
             tableCard.repaint();
         });
+
+        // receipt action
+        receiptButton.addActionListener(e -> {
+
+            int selectedRow = table.getSelectedRow();
+
+            if (selectedRow == -1) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Please select a transaction first.",
+                        "No Transaction Selected",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                return;
+            }
+
+            try {
+
+                int accNo = Integer.parseInt(
+                        txnAccNoField.getText().trim()
+                );
+
+                BankAccount acc = bank.search(accNo);
+
+                if (acc == null || selectedRow >= acc.transactions.size()) {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "Transaction details could not be loaded.",
+                            "Receipt Error",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                    return;
+                }
+
+                Transaction transaction = acc.transactions.get(selectedRow);
+
+                showTransactionReceipt(acc, transaction);
+
+            } catch (NumberFormatException ex) {
+
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Please view a valid account statement first.",
+                        "Receipt Error",
+                        JOptionPane.WARNING_MESSAGE
+                );
+            }
+        });
+
+        // open statement directly for the logged-in account
+        if (loggedInAccount != null) {
+
+            txnAccNoField.setText(
+                    String.valueOf(loggedInAccount.accountNo)
+            );
+
+            SwingUtilities.invokeLater(
+                    () -> txnViewBtn.doClick()
+            );
+        }
 
         panel.add(content, BorderLayout.CENTER);
         return panel;
     }
 
-    // =========================================================================
-    // 8. UPDATE CUSTOMER SCREEN (TWO-COLUMN FINTECH LAYOUT)
-    // =========================================================================
+    private void showTransactionReceipt(
+            BankAccount account,
+            Transaction transaction
+    ) {
+
+        JDialog receiptDialog = new JDialog(
+                this,
+                "Transaction Receipt",
+                true
+        );
+
+        receiptDialog.setSize(520, 590);
+        receiptDialog.setLocationRelativeTo(this);
+        receiptDialog.setResizable(false);
+
+        JPanel mainPanel = new JPanel(new BorderLayout(0, 16));
+        mainPanel.setBackground(cardBg);
+        mainPanel.setBorder(new EmptyBorder(24, 28, 24, 28));
+
+        JPanel header = new JPanel();
+        header.setOpaque(false);
+        header.setLayout(new BoxLayout(header, BoxLayout.Y_AXIS));
+
+        JLabel bankTitle = new JLabel("FINBANK");
+        bankTitle.setFont(new Font("Segoe UI", Font.BOLD, 26));
+        bankTitle.setForeground(PRIMARY_CORAL);
+        bankTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel receiptTitle = new JLabel("TRANSACTION RECEIPT");
+        receiptTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        receiptTitle.setForeground(textMain);
+        receiptTitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel receiptSubtitle = new JLabel(
+                "Transaction details and confirmation"
+        );
+        receiptSubtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        receiptSubtitle.setForeground(textMuted);
+        receiptSubtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        header.add(bankTitle);
+        header.add(Box.createRigidArea(new Dimension(0, 3)));
+        header.add(receiptTitle);
+        header.add(Box.createRigidArea(new Dimension(0, 4)));
+        header.add(receiptSubtitle);
+
+        mainPanel.add(header, BorderLayout.NORTH);
+
+        RoundedCard detailsCard = new RoundedCard(
+                18,
+                isDarkMode ? new Color(28, 30, 38) : new Color(250, 249, 247),
+                cardBorder
+        );
+        detailsCard.setLayout(new GridLayout(0, 2, 12, 14));
+        detailsCard.setBorder(new EmptyBorder(20, 22, 20, 22));
+
+        String dateTime = transaction.dateTime == null
+                ? "-"
+                : transaction.dateTime.format(
+                DateTimeFormatter.ofPattern(
+                        "dd-MM-yyyy HH:mm"
+                )
+        );
+
+        addReceiptDetail(detailsCard, "Transaction ID", transaction.id);
+        addReceiptDetail(detailsCard, "Date & Time", dateTime);
+        addReceiptDetail(detailsCard, "Type", transaction.type);
+        addReceiptDetail(detailsCard, "Amount", "Rs. " + String.format(
+                "%,.2f",
+                transaction.amount
+        ));
+        addReceiptDetail(detailsCard, "From", transaction.from);
+        addReceiptDetail(detailsCard, "To", transaction.to);
+        addReceiptDetail(detailsCard, "Status", transaction.status);
+        addReceiptDetail(detailsCard, "Account", "#" + account.accountNo);
+        addReceiptDetail(detailsCard, "Account Type", account.type);
+        addReceiptDetail(detailsCard, "Current Balance", "Rs. " + String.format(
+                "%,.2f",
+                account.balance
+        ));
+
+        mainPanel.add(detailsCard, BorderLayout.CENTER);
+
+        JPanel bottomPanel = new JPanel();
+        bottomPanel.setOpaque(false);
+        bottomPanel.setLayout(new BoxLayout(bottomPanel, BoxLayout.Y_AXIS));
+
+        JLabel successLabel = new JLabel(
+                transaction.status.equalsIgnoreCase("SUCCESS")
+                        ? "✓ Transaction completed successfully"
+                        : "Transaction status: " + transaction.status
+        );
+        successLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        successLabel.setForeground(
+                transaction.status.equalsIgnoreCase("SUCCESS")
+                        ? new Color(45, 150, 95)
+                        : DANGER_RED
+        );
+        successLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        ModernButton closeButton = new ModernButton(
+                "Close",
+                PRIMARY_CORAL,
+                PRIMARY_CORAL_HOVER,
+                Color.WHITE,
+                13
+        );
+        closeButton.setPreferredSize(new Dimension(110, 40));
+        closeButton.setMaximumSize(new Dimension(110, 40));
+        closeButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        closeButton.addActionListener(e -> receiptDialog.dispose());
+
+        bottomPanel.add(successLabel);
+        bottomPanel.add(Box.createRigidArea(new Dimension(0, 12)));
+        bottomPanel.add(closeButton);
+
+        mainPanel.add(bottomPanel, BorderLayout.SOUTH);
+
+        receiptDialog.add(mainPanel);
+        receiptDialog.setVisible(true);
+    }
+
+    private void addReceiptDetail(
+            JPanel panel,
+            String title,
+            String value
+    ) {
+
+        JPanel detail = new JPanel();
+        detail.setOpaque(false);
+        detail.setLayout(new BoxLayout(detail, BoxLayout.Y_AXIS));
+
+        JLabel titleLabel = new JLabel(title);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        titleLabel.setForeground(textMuted);
+
+        JLabel valueLabel = new JLabel(value);
+        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        valueLabel.setForeground(textMain);
+
+        detail.add(titleLabel);
+        detail.add(Box.createRigidArea(new Dimension(0, 3)));
+        detail.add(valueLabel);
+
+        panel.add(detail);
+    }
+
     private JPanel createUpdatePanel() {
         JPanel panel = new JPanel(new BorderLayout(0, 16));
         panel.setOpaque(false);
