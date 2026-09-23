@@ -88,6 +88,18 @@ public class BankGUI extends JFrame {
     ModernTextField txnAccNoField;
     ModernButton txnViewBtn;
 
+    // analytics screen dynamic components
+    private JLabel analyticsTotalAccountsLabel;
+    private JLabel analyticsTotalBalanceLabel;
+    private JLabel analyticsTotalTransactionsLabel;
+    private JLabel analyticsDepositVolumeLabel;
+    private JLabel analyticsWithdrawalVolumeLabel;
+    private JLabel analyticsTransferVolumeLabel;
+    private JLabel analyticsSavingsLabel;
+    private JLabel analyticsCurrentLabel;
+    private JLabel analyticsLargestTransactionLabel;
+    private JLabel analyticsAverageTransactionLabel;
+
     // summary screen dynamic components
     private JLabel summaryTotalAccountsLabel;
     private JLabel summaryTotalBalanceLabel;
@@ -525,6 +537,7 @@ public class BankGUI extends JFrame {
         mainContentCards.add(createUpdatePanel(), "Update");
         mainContentCards.add(createDeletePanel(), "Delete");
         mainContentCards.add(createSummaryPanel(), "Bank Summary");
+        mainContentCards.add(createAnalyticsPanel(), "Statistics");
 
         outer.add(mainContentCards, BorderLayout.CENTER);
         return outer;
@@ -1697,6 +1710,16 @@ public class BankGUI extends JFrame {
                     return;
                 }
 
+                if (loggedInAccount != null && from != loggedInAccount.accountNo) {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "You can only transfer money from your logged-in account.",
+                            "Access Denied",
+                            JOptionPane.WARNING_MESSAGE
+                    );
+                    return;
+                }
+
                 if (!sender.canWithdraw(amount)) {
                     JOptionPane.showMessageDialog(
                             this,
@@ -1732,6 +1755,10 @@ public class BankGUI extends JFrame {
                                 "Account Not Found",
                                 JOptionPane.ERROR_MESSAGE
                         );
+                        return;
+                    }
+
+                    if (!verifyTransactionPin()) {
                         return;
                     }
 
@@ -1783,6 +1810,10 @@ public class BankGUI extends JFrame {
                             externalAccount,
                             ifsc
                     );
+
+                    if (!verifyTransactionPin()) {
+                        return;
+                    }
 
                     if (!bank.externalTransfer(from, beneficiary, amount)) {
                         JOptionPane.showMessageDialog(
@@ -1842,6 +1873,93 @@ public class BankGUI extends JFrame {
 
         panel.add(columnsPanel, BorderLayout.CENTER);
         return panel;
+    }
+
+    private boolean verifyTransactionPin() {
+
+        if (loggedInAccount == null) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Please login before making a transaction.",
+                    "Login Required",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return false;
+        }
+
+        JDialog pinDialog = new JDialog(this, "Transaction PIN", true);
+        pinDialog.setSize(360, 220);
+        pinDialog.setLocationRelativeTo(this);
+        pinDialog.setResizable(false);
+
+        JPanel panel = new JPanel();
+        panel.setBorder(new EmptyBorder(24, 28, 24, 28));
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(cardBg);
+
+        JLabel title = new JLabel("Confirm Transaction");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        title.setForeground(textMain);
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel subtitle = new JLabel("Enter your 4-digit transaction PIN");
+        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        subtitle.setForeground(textMuted);
+        subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JPasswordField pinField = new JPasswordField();
+        pinField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+
+        ModernButton confirmBtn = new ModernButton(
+                "Confirm",
+                PRIMARY_CORAL,
+                PRIMARY_CORAL_HOVER,
+                Color.WHITE,
+                13
+        );
+        confirmBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+
+        final boolean[] verified = {false};
+
+        confirmBtn.addActionListener(e -> {
+            String pin = new String(pinField.getPassword());
+
+            if (!pin.matches("\\d{4}")) {
+                JOptionPane.showMessageDialog(
+                        pinDialog,
+                        "PIN must contain exactly 4 digits.",
+                        "Invalid PIN",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                return;
+            }
+
+            if (loggedInAccount.customer.verifyPin(pin)) {
+                verified[0] = true;
+                pinDialog.dispose();
+            } else {
+                JOptionPane.showMessageDialog(
+                        pinDialog,
+                        "Incorrect transaction PIN.",
+                        "Verification Failed",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                pinField.setText("");
+            }
+        });
+
+        panel.add(title);
+        panel.add(Box.createRigidArea(new Dimension(0, 5)));
+        panel.add(subtitle);
+        panel.add(Box.createRigidArea(new Dimension(0, 16)));
+        panel.add(pinField);
+        panel.add(Box.createRigidArea(new Dimension(0, 14)));
+        panel.add(confirmBtn);
+
+        pinDialog.add(panel);
+        pinDialog.setVisible(true);
+
+        return verified[0];
     }
 
     // =========================================================================
@@ -3151,12 +3269,158 @@ public class BankGUI extends JFrame {
     }
 
     // =========================================================================
+    // 8. STATISTICS & ANALYTICS SCREEN
+    // =========================================================================
+    private JPanel createAnalyticsPanel() {
+        JPanel panel = new JPanel(new BorderLayout(0, 16));
+        panel.setOpaque(false);
+
+        panel.add(
+                createHeaderTitleBlock(
+                        "Statistics & Analytics",
+                        "View overall banking activity and account statistics."
+                ),
+                BorderLayout.NORTH
+        );
+
+        JPanel content = new JPanel();
+        content.setOpaque(false);
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+
+        JPanel topRow = new JPanel(new GridLayout(1, 3, 14, 0));
+        topRow.setOpaque(false);
+
+        analyticsTotalAccountsLabel = new JLabel("0");
+        analyticsTotalBalanceLabel = new JLabel("Rs. 0.00");
+        analyticsTotalTransactionsLabel = new JLabel("0");
+
+        topRow.add(createOverviewMetricBlock(
+                "Total Accounts", analyticsTotalAccountsLabel
+        ));
+        topRow.add(createOverviewMetricBlock(
+                "Total Bank Balance", analyticsTotalBalanceLabel
+        ));
+        topRow.add(createOverviewMetricBlock(
+                "Total Transactions", analyticsTotalTransactionsLabel
+        ));
+
+        JPanel secondRow = new JPanel(new GridLayout(1, 3, 14, 0));
+        secondRow.setOpaque(false);
+
+        analyticsDepositVolumeLabel = new JLabel("Rs. 0.00");
+        analyticsWithdrawalVolumeLabel = new JLabel("Rs. 0.00");
+        analyticsTransferVolumeLabel = new JLabel("Rs. 0.00");
+
+        secondRow.add(createOverviewMetricBlock(
+                "Deposit Volume", analyticsDepositVolumeLabel
+        ));
+        secondRow.add(createOverviewMetricBlock(
+                "Withdrawal Volume", analyticsWithdrawalVolumeLabel
+        ));
+        secondRow.add(createOverviewMetricBlock(
+                "Transfer Volume", analyticsTransferVolumeLabel
+        ));
+
+        RoundedCard accountCard = new RoundedCard(22, cardBg, cardBorder);
+        accountCard.setLayout(new BorderLayout(0, 12));
+        accountCard.setBorder(new EmptyBorder(18, 22, 18, 22));
+
+        JPanel accountHeader = new JPanel(new GridLayout(2, 1, 0, 2));
+        accountHeader.setOpaque(false);
+
+        JLabel accountTitle = new JLabel("Account Distribution");
+        accountTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        accountTitle.setForeground(textMain);
+
+        JLabel accountSub = new JLabel(
+                "Current distribution of Savings and Current accounts."
+        );
+        accountSub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        accountSub.setForeground(textMuted);
+
+        accountHeader.add(accountTitle);
+        accountHeader.add(accountSub);
+        accountCard.add(accountHeader, BorderLayout.NORTH);
+
+        JPanel accountGrid = new JPanel(new GridLayout(1, 2, 14, 0));
+        accountGrid.setOpaque(false);
+
+        analyticsSavingsLabel = new JLabel("0");
+        analyticsCurrentLabel = new JLabel("0");
+
+        accountGrid.add(createOverviewMetricBlock(
+                "Savings Accounts", analyticsSavingsLabel
+        ));
+        accountGrid.add(createOverviewMetricBlock(
+                "Current Accounts", analyticsCurrentLabel
+        ));
+
+        accountCard.add(accountGrid, BorderLayout.CENTER);
+
+        RoundedCard activityCard = new RoundedCard(22, cardBg, cardBorder);
+        activityCard.setLayout(new BorderLayout(0, 12));
+        activityCard.setBorder(new EmptyBorder(18, 22, 18, 22));
+
+        JPanel activityHeader = new JPanel(new GridLayout(2, 1, 0, 2));
+        activityHeader.setOpaque(false);
+
+        JLabel activityTitle = new JLabel("Transaction Insights");
+        activityTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        activityTitle.setForeground(textMain);
+
+        JLabel activitySub = new JLabel(
+                "Simple transaction statistics from the banking ledger."
+        );
+        activitySub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        activitySub.setForeground(textMuted);
+
+        activityHeader.add(activityTitle);
+        activityHeader.add(activitySub);
+        activityCard.add(activityHeader, BorderLayout.NORTH);
+
+        JPanel activityGrid = new JPanel(new GridLayout(1, 2, 14, 0));
+        activityGrid.setOpaque(false);
+
+        analyticsLargestTransactionLabel = new JLabel("Rs. 0.00");
+        analyticsAverageTransactionLabel = new JLabel("Rs. 0.00");
+
+        activityGrid.add(createOverviewMetricBlock(
+                "Largest Transaction", analyticsLargestTransactionLabel
+        ));
+        activityGrid.add(createOverviewMetricBlock(
+                "Average Transaction", analyticsAverageTransactionLabel
+        ));
+
+        activityCard.add(activityGrid, BorderLayout.CENTER);
+
+        content.add(topRow);
+        content.add(Box.createRigidArea(new Dimension(0, 14)));
+        content.add(secondRow);
+        content.add(Box.createRigidArea(new Dimension(0, 14)));
+        content.add(accountCard);
+        content.add(Box.createRigidArea(new Dimension(0, 14)));
+        content.add(activityCard);
+
+        JScrollPane scroll = new JScrollPane(content);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
+        scroll.setBorder(null);
+        scroll.setHorizontalScrollBarPolicy(
+                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+        );
+
+        panel.add(scroll, BorderLayout.CENTER);
+        return panel;
+    }
+
+    // =========================================================================
     // DATA REFRESH METHODS
     // =========================================================================
     void refreshAll() {
         refreshDashboard();
         refreshAccountsTable();
         refreshSummary();
+        refreshAnalytics();
         if (createAccNextNoLabel != null) {
             createAccNextNoLabel.setText("Next Account Number: #" + nextAccountNo);
         }
@@ -3249,6 +3513,105 @@ public class BankGUI extends JFrame {
                     "Total: %d Accounts  •  %d Savings, %d Current  •  Active Registry",
                     bank.totalAccounts(), savings, current
             ));
+        }
+    }
+
+    private void refreshAnalytics() {
+        int totalAccounts = bank.totalAccounts();
+        double totalBalance = bank.totalBalance();
+
+        int savings = 0;
+        int current = 0;
+        int totalTransactions = 0;
+        double depositVolume = 0.0;
+        double withdrawalVolume = 0.0;
+        double transferVolume = 0.0;
+        double largestTransaction = 0.0;
+        double totalTransactionAmount = 0.0;
+
+        for (BankAccount account : bank.accounts.values()) {
+            if ("Savings".equalsIgnoreCase(account.type)) {
+                savings++;
+            } else if ("Current".equalsIgnoreCase(account.type)) {
+                current++;
+            }
+
+            for (Transaction t : account.transactions) {
+                totalTransactions++;
+                totalTransactionAmount += t.amount;
+
+                if (t.amount > largestTransaction) {
+                    largestTransaction = t.amount;
+                }
+
+                if (t.type.contains("Deposit")) {
+                    depositVolume += t.amount;
+                } else if (t.type.contains("Transfer")) {
+                    transferVolume += t.amount;
+                    withdrawalVolume += t.amount;
+                } else {
+                    withdrawalVolume += t.amount;
+                }
+            }
+        }
+
+        double averageTransaction =
+                totalTransactions > 0
+                        ? totalTransactionAmount / totalTransactions
+                        : 0.0;
+
+        if (analyticsTotalAccountsLabel != null) {
+            analyticsTotalAccountsLabel.setText(String.valueOf(totalAccounts));
+        }
+
+        if (analyticsTotalBalanceLabel != null) {
+            analyticsTotalBalanceLabel.setText(
+                    String.format("Rs. %,.2f", totalBalance)
+            );
+        }
+
+        if (analyticsTotalTransactionsLabel != null) {
+            analyticsTotalTransactionsLabel.setText(
+                    String.valueOf(totalTransactions)
+            );
+        }
+
+        if (analyticsDepositVolumeLabel != null) {
+            analyticsDepositVolumeLabel.setText(
+                    String.format("Rs. %,.2f", depositVolume)
+            );
+        }
+
+        if (analyticsWithdrawalVolumeLabel != null) {
+            analyticsWithdrawalVolumeLabel.setText(
+                    String.format("Rs. %,.2f", withdrawalVolume)
+            );
+        }
+
+        if (analyticsTransferVolumeLabel != null) {
+            analyticsTransferVolumeLabel.setText(
+                    String.format("Rs. %,.2f", transferVolume)
+            );
+        }
+
+        if (analyticsSavingsLabel != null) {
+            analyticsSavingsLabel.setText(String.valueOf(savings));
+        }
+
+        if (analyticsCurrentLabel != null) {
+            analyticsCurrentLabel.setText(String.valueOf(current));
+        }
+
+        if (analyticsLargestTransactionLabel != null) {
+            analyticsLargestTransactionLabel.setText(
+                    String.format("Rs. %,.2f", largestTransaction)
+            );
+        }
+
+        if (analyticsAverageTransactionLabel != null) {
+            analyticsAverageTransactionLabel.setText(
+                    String.format("Rs. %,.2f", averageTransaction)
+            );
         }
     }
 
