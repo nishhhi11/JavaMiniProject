@@ -186,9 +186,18 @@ public class BankGUI extends JFrame {
         BankAccount a2 = new BankAccount(1002, c2, "Current", 28500);
         BankAccount a3 = new BankAccount(1003, c3, "Savings", 8200);
 
-        a1.transactions.add(new Transaction("Deposit", 15000));
-        a2.transactions.add(new Transaction("Deposit", 28500));
-        a3.transactions.add(new Transaction("Deposit", 8200));
+        a1.transactions.add(new Transaction(
+                bank.transactionId(), "Deposit", 15000,
+                "External", "1001", "SUCCESS"
+        ));
+        a2.transactions.add(new Transaction(
+                bank.transactionId(), "Deposit", 28500,
+                "External", "1002", "SUCCESS"
+        ));
+        a3.transactions.add(new Transaction(
+                bank.transactionId(), "Deposit", 8200,
+                "External", "1003", "SUCCESS"
+        ));
 
         bank.addAccount(a1);
         bank.addAccount(a2);
@@ -532,9 +541,9 @@ public class BankGUI extends JFrame {
 
         // top page header
         JPanel headerPanel = createPageHeader(
-            "Finance Management Dashboard",
-            "Real-time overview of customer portfolios and registry activity.",
-            null
+                "Finance Management Dashboard",
+                "Real-time overview of customer portfolios and registry activity.",
+                null
         );
         panel.add(headerPanel, BorderLayout.NORTH);
 
@@ -942,14 +951,14 @@ public class BankGUI extends JFrame {
         typeCombo.setPreferredSize(new Dimension(200, 42));
         typeCombo.setAlignmentX(Component.LEFT_ALIGNMENT);
         typeCombo.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(inputBorder, 1, true),
-            BorderFactory.createEmptyBorder(2, 6, 2, 6)
+                BorderFactory.createLineBorder(inputBorder, 1, true),
+                BorderFactory.createEmptyBorder(2, 6, 2, 6)
         ));
         typeCombo.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
             @Override
             protected JButton createArrowButton() {
                 javax.swing.plaf.basic.BasicArrowButton btn = new javax.swing.plaf.basic.BasicArrowButton(
-                    SwingConstants.SOUTH, inputBg, inputBorder, textMain, inputBg
+                        SwingConstants.SOUTH, inputBg, inputBorder, textMain, inputBg
                 );
                 btn.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 8));
                 return btn;
@@ -1036,17 +1045,24 @@ public class BankGUI extends JFrame {
                 BankAccount newAccount = new BankAccount(assignedAccNo, customer, type, initialDeposit);
 
                 if (initialDeposit > 0) {
-                    newAccount.transactions.add(new Transaction("Deposit", initialDeposit));
+                    newAccount.transactions.add(new Transaction(
+                            bank.transactionId(),
+                            "Deposit",
+                            initialDeposit,
+                            "External",
+                            String.valueOf(assignedAccNo),
+                            "SUCCESS"
+                    ));
                 }
 
                 bank.addAccount(newAccount);
 
                 JOptionPane.showMessageDialog(
-                    this,
-                    String.format("Account Created Successfully!\n\nAccount No: #%d\nCustomer: %s\nType: %s\nInitial Balance: Rs. %,.2f",
-                        assignedAccNo, name, type, initialDeposit),
-                    "Account Activated",
-                    JOptionPane.INFORMATION_MESSAGE
+                        this,
+                        String.format("Account Created Successfully!\n\nAccount No: #%d\nCustomer: %s\nType: %s\nInitial Balance: Rs. %,.2f",
+                                assignedAccNo, name, type, initialDeposit),
+                        "Account Activated",
+                        JOptionPane.INFORMATION_MESSAGE
                 );
 
                 nameField.setText("");
@@ -1206,11 +1222,11 @@ public class BankGUI extends JFrame {
                 bank.deposit(accNo, amount);
 
                 JOptionPane.showMessageDialog(
-                    this,
-                    String.format("Deposit Successful!\n\nAccount: #%d (%s)\nDeposited: Rs. %,.2f\nUpdated Balance: Rs. %,.2f",
-                        accNo, acc.customer.name, amount, acc.balance),
-                    "Transaction Confirmed",
-                    JOptionPane.INFORMATION_MESSAGE
+                        this,
+                        String.format("Deposit Successful!\n\nAccount: #%d (%s)\nDeposited: Rs. %,.2f\nUpdated Balance: Rs. %,.2f",
+                                accNo, acc.customer.name, amount, acc.balance),
+                        "Transaction Confirmed",
+                        JOptionPane.INFORMATION_MESSAGE
                 );
 
                 accNoField.setText("");
@@ -1366,10 +1382,10 @@ public class BankGUI extends JFrame {
 
                 if (acc.balance < amount) {
                     JOptionPane.showMessageDialog(
-                        this,
-                        String.format("Insufficient Funds!\n\nCurrent Balance: Rs. %,.2f\nRequested: Rs. %,.2f", acc.balance, amount),
-                        "Transaction Denied",
-                        JOptionPane.WARNING_MESSAGE
+                            this,
+                            String.format("Insufficient Funds!\n\nCurrent Balance: Rs. %,.2f\nRequested: Rs. %,.2f", acc.balance, amount),
+                            "Transaction Denied",
+                            JOptionPane.WARNING_MESSAGE
                     );
                     return;
                 }
@@ -1377,11 +1393,11 @@ public class BankGUI extends JFrame {
                 bank.withdraw(accNo, amount);
 
                 JOptionPane.showMessageDialog(
-                    this,
-                    String.format("Withdrawal Successful!\n\nAccount: #%d (%s)\nDebited: Rs. %,.2f\nRemaining Balance: Rs. %,.2f",
-                        accNo, acc.customer.name, amount, acc.balance),
-                    "Transaction Confirmed",
-                    JOptionPane.INFORMATION_MESSAGE
+                        this,
+                        String.format("Withdrawal Successful!\n\nAccount: #%d (%s)\nDebited: Rs. %,.2f\nRemaining Balance: Rs. %,.2f",
+                                accNo, acc.customer.name, amount, acc.balance),
+                        "Transaction Confirmed",
+                        JOptionPane.INFORMATION_MESSAGE
                 );
 
                 accNoField.setText("");
@@ -1949,10 +1965,10 @@ public class BankGUI extends JFrame {
                 bank.update(accNo, newName, newPhone);
 
                 JOptionPane.showMessageDialog(
-                    this,
-                    String.format("Customer Details Updated!\n\nAccount: #%d\nName: %s\nPhone: %s", accNo, newName, newPhone),
-                    "Profile Updated",
-                    JOptionPane.INFORMATION_MESSAGE
+                        this,
+                        String.format("Customer Details Updated!\n\nAccount: #%d\nName: %s\nPhone: %s", accNo, newName, newPhone),
+                        "Profile Updated",
+                        JOptionPane.INFORMATION_MESSAGE
                 );
 
                 accNoField.setText("");
@@ -2115,22 +2131,22 @@ public class BankGUI extends JFrame {
                 }
 
                 int confirm = JOptionPane.showConfirmDialog(
-                    this,
-                    String.format("Are you sure you want to permanently delete this account?\n\nAccount: #%d\nCustomer: %s\nBalance: Rs. %,.2f",
-                        accNo, acc.customer.name, acc.balance),
-                    "Confirm Account Deletion",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.WARNING_MESSAGE
+                        this,
+                        String.format("Are you sure you want to permanently delete this account?\n\nAccount: #%d\nCustomer: %s\nBalance: Rs. %,.2f",
+                                accNo, acc.customer.name, acc.balance),
+                        "Confirm Account Deletion",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE
                 );
 
                 if (confirm == JOptionPane.YES_OPTION) {
                     bank.delete(accNo);
 
                     JOptionPane.showMessageDialog(
-                        this,
-                        "Account #" + accNo + " has been permanently removed.",
-                        "Account Deleted",
-                        JOptionPane.INFORMATION_MESSAGE
+                            this,
+                            "Account #" + accNo + " has been permanently removed.",
+                            "Account Deleted",
+                            JOptionPane.INFORMATION_MESSAGE
                     );
 
                     accNoField.setText("");
@@ -2400,10 +2416,10 @@ public class BankGUI extends JFrame {
             dashAccountsTableModel.setRowCount(0);
             for (BankAccount a : bank.sortedAccounts.values()) {
                 dashAccountsTableModel.addRow(new Object[]{
-                    a.accountNo,
-                    a.customer.name,
-                    a.type,
-                    String.format("Rs. %,.2f", a.balance)
+                        a.accountNo,
+                        a.customer.name,
+                        a.type,
+                        String.format("Rs. %,.2f", a.balance)
                 });
             }
             boolean empty = dashAccountsTableModel.getRowCount() == 0;
@@ -2417,10 +2433,10 @@ public class BankGUI extends JFrame {
             for (BankAccount a : bank.accounts.values()) {
                 for (Transaction t : a.transactions) {
                     allTxns.add(new Object[]{
-                        "#" + a.accountNo,
-                        a.customer.name,
-                        t.type,
-                        t.amount
+                            "#" + a.accountNo,
+                            a.customer.name,
+                            t.type,
+                            t.amount
                     });
                 }
             }
@@ -2445,18 +2461,18 @@ public class BankGUI extends JFrame {
             else if ("Current".equalsIgnoreCase(a.type)) current++;
 
             accountsTableModel.addRow(new Object[]{
-                a.accountNo,
-                a.customer.name,
-                a.customer.phone,
-                a.type,
-                String.format("Rs. %,.2f", a.balance)
+                    a.accountNo,
+                    a.customer.name,
+                    a.customer.phone,
+                    a.type,
+                    String.format("Rs. %,.2f", a.balance)
             });
         }
 
         if (accountsSummaryLabel != null) {
             accountsSummaryLabel.setText(String.format(
-                "Total: %d Accounts  •  %d Savings, %d Current  •  Active Registry",
-                bank.totalAccounts(), savings, current
+                    "Total: %d Accounts  •  %d Savings, %d Current  •  Active Registry",
+                    bank.totalAccounts(), savings, current
             ));
         }
     }
@@ -2504,10 +2520,10 @@ public class BankGUI extends JFrame {
                     withdrawalVol += t.amount;
                 }
                 allTxns.add(new Object[]{
-                    t.type,
-                    "#" + a.accountNo,
-                    a.customer.name,
-                    t.amount
+                        t.type,
+                        "#" + a.accountNo,
+                        a.customer.name,
+                        t.amount
                 });
             }
         }
@@ -2806,10 +2822,10 @@ public class BankGUI extends JFrame {
 
             // 2. Realistic dark charcoal/black card surface with subtle gradient depth
             GradientPaint gp = new GradientPaint(
-                cardX, cardY,
-                new Color(36, 38, 46),
-                cardX + cardW, cardY + cardH,
-                new Color(18, 19, 24)
+                    cardX, cardY,
+                    new Color(36, 38, 46),
+                    cardX + cardW, cardY + cardH,
+                    new Color(18, 19, 24)
             );
             g2.setPaint(gp);
             g2.fillRoundRect(cardX, cardY, cardW, cardH, 16, 16);
@@ -2904,10 +2920,10 @@ public class BankGUI extends JFrame {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
             GradientPaint gp = new GradientPaint(
-                0, 0,
-                isDarkMode ? new Color(20, 36, 26) : new Color(230, 246, 236),
-                getWidth(), getHeight(),
-                isDarkMode ? new Color(14, 24, 18) : new Color(210, 240, 222)
+                    0, 0,
+                    isDarkMode ? new Color(20, 36, 26) : new Color(230, 246, 236),
+                    getWidth(), getHeight(),
+                    isDarkMode ? new Color(14, 24, 18) : new Color(210, 240, 222)
             );
             g2.setPaint(gp);
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
@@ -2951,10 +2967,10 @@ public class BankGUI extends JFrame {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
             GradientPaint gp = new GradientPaint(
-                0, 0,
-                isDarkMode ? new Color(42, 28, 26) : new Color(255, 240, 235),
-                getWidth(), getHeight(),
-                isDarkMode ? new Color(28, 20, 18) : new Color(255, 226, 218)
+                    0, 0,
+                    isDarkMode ? new Color(42, 28, 26) : new Color(255, 240, 235),
+                    getWidth(), getHeight(),
+                    isDarkMode ? new Color(28, 20, 18) : new Color(255, 226, 218)
             );
             g2.setPaint(gp);
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
@@ -2998,10 +3014,10 @@ public class BankGUI extends JFrame {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
             GradientPaint gp = new GradientPaint(
-                0, 0,
-                isDarkMode ? new Color(34, 28, 48) : new Color(246, 238, 255),
-                getWidth(), getHeight(),
-                isDarkMode ? new Color(24, 20, 36) : new Color(236, 224, 252)
+                    0, 0,
+                    isDarkMode ? new Color(34, 28, 48) : new Color(246, 238, 255),
+                    getWidth(), getHeight(),
+                    isDarkMode ? new Color(24, 20, 36) : new Color(236, 224, 252)
             );
             g2.setPaint(gp);
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
@@ -3045,10 +3061,10 @@ public class BankGUI extends JFrame {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
             GradientPaint gp = new GradientPaint(
-                0, 0,
-                isDarkMode ? new Color(46, 24, 24) : new Color(255, 238, 238),
-                getWidth(), getHeight(),
-                isDarkMode ? new Color(32, 18, 18) : new Color(254, 224, 224)
+                    0, 0,
+                    isDarkMode ? new Color(46, 24, 24) : new Color(255, 238, 238),
+                    getWidth(), getHeight(),
+                    isDarkMode ? new Color(32, 18, 18) : new Color(254, 224, 224)
             );
             g2.setPaint(gp);
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
@@ -3311,8 +3327,8 @@ public class BankGUI extends JFrame {
         private void updateBorder() {
             Color borderColor = isFocused ? PRIMARY_CORAL : inputBorder;
             setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(borderColor, isFocused ? 2 : 1, true),
-                BorderFactory.createEmptyBorder(isFocused ? 7 : 8, 14, isFocused ? 7 : 8, 14)
+                    BorderFactory.createLineBorder(borderColor, isFocused ? 2 : 1, true),
+                    BorderFactory.createEmptyBorder(isFocused ? 7 : 8, 14, isFocused ? 7 : 8, 14)
             ));
         }
     }
