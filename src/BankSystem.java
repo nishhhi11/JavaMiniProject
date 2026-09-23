@@ -5,11 +5,17 @@ import java.util.LinkedList;
 public class BankSystem {
 
     HashMap<Integer, BankAccount> accounts = new HashMap<>();
-    TreeMap<Integer, BankAccount> sortedAccounts = new TreeMap<>();
 
-    LinkedList<Beneficiary> beneficiaries = new LinkedList<>();
+    TreeMap<Integer, BankAccount> sortedAccounts =
+            new TreeMap<>();
 
-    String[] accountTypes = {"Savings", "Current"};
+    LinkedList<Beneficiary> beneficiaries =
+            new LinkedList<>();
+
+    String[] accountTypes = {
+            "Savings",
+            "Current"
+    };
 
     int transactionNumber = 10001;
 
@@ -53,7 +59,10 @@ public class BankSystem {
             return false;
         }
 
-        return account.deposit(amount, transactionId());
+        return account.deposit(
+                amount,
+                transactionId()
+        );
     }
 
     boolean withdraw(int accountNo, double amount) {
@@ -97,10 +106,16 @@ public class BankSystem {
             return false;
         }
 
-        return account.withdraw(amount, transactionId());
+        return account.withdraw(
+                amount,
+                transactionId()
+        );
     }
 
-    boolean transfer(int from, int to, double amount) {
+    boolean transfer(
+            int from,
+            int to,
+            double amount) {
 
         BankAccount sender = search(from);
         BankAccount receiver = search(to);
@@ -110,16 +125,13 @@ public class BankSystem {
 
         if (from == to) {
 
-            sender.transactions.add(
-                    new Transaction(
-                            transactionId(),
-                            "Transfer",
-                            amount,
-                            String.valueOf(from),
-                            String.valueOf(to),
-                            "FAILED",
-                            "Cannot transfer to same account"
-                    )
+            addFailedTransaction(
+                    sender,
+                    "Transfer",
+                    amount,
+                    String.valueOf(from),
+                    String.valueOf(to),
+                    "Cannot transfer to same account"
             );
 
             return false;
@@ -127,16 +139,13 @@ public class BankSystem {
 
         if (amount <= 0) {
 
-            sender.transactions.add(
-                    new Transaction(
-                            transactionId(),
-                            "Transfer",
-                            amount,
-                            String.valueOf(from),
-                            String.valueOf(to),
-                            "FAILED",
-                            "Invalid amount"
-                    )
+            addFailedTransaction(
+                    sender,
+                    "Transfer",
+                    amount,
+                    String.valueOf(from),
+                    String.valueOf(to),
+                    "Invalid amount"
             );
 
             return false;
@@ -144,16 +153,13 @@ public class BankSystem {
 
         if (!sender.canWithdraw(amount)) {
 
-            sender.transactions.add(
-                    new Transaction(
-                            transactionId(),
-                            "Transfer",
-                            amount,
-                            String.valueOf(from),
-                            String.valueOf(to),
-                            "FAILED",
-                            "Insufficient balance"
-                    )
+            addFailedTransaction(
+                    sender,
+                    "Transfer",
+                    amount,
+                    String.valueOf(from),
+                    String.valueOf(to),
+                    "Insufficient balance"
             );
 
             return false;
@@ -196,21 +202,18 @@ public class BankSystem {
 
         BankAccount sender = search(from);
 
-        if (sender == null)
+        if (sender == null || beneficiary == null)
             return false;
 
         if (amount <= 0) {
 
-            sender.transactions.add(
-                    new Transaction(
-                            transactionId(),
-                            "External Transfer",
-                            amount,
-                            String.valueOf(from),
-                            beneficiary.bankName,
-                            "FAILED",
-                            "Invalid amount"
-                    )
+            addFailedTransaction(
+                    sender,
+                    "External Transfer",
+                    amount,
+                    String.valueOf(from),
+                    beneficiary.bankName,
+                    "Invalid amount"
             );
 
             return false;
@@ -218,16 +221,13 @@ public class BankSystem {
 
         if (!sender.canWithdraw(amount)) {
 
-            sender.transactions.add(
-                    new Transaction(
-                            transactionId(),
-                            "External Transfer",
-                            amount,
-                            String.valueOf(from),
-                            beneficiary.bankName,
-                            "FAILED",
-                            "Insufficient balance"
-                    )
+            addFailedTransaction(
+                    sender,
+                    "External Transfer",
+                    amount,
+                    String.valueOf(from),
+                    beneficiary.bankName,
+                    "Insufficient balance"
             );
 
             return false;
@@ -253,32 +253,37 @@ public class BankSystem {
         return true;
     }
 
-    void addBeneficiary(Beneficiary beneficiary) {
+    private void addFailedTransaction(
+            BankAccount account,
+            String type,
+            double amount,
+            String from,
+            String to,
+            String reason) {
 
-        beneficiaries.add(beneficiary);
+        account.transactions.add(
+                new Transaction(
+                        transactionId(),
+                        type,
+                        amount,
+                        from,
+                        to,
+                        "FAILED",
+                        reason
+                )
+        );
     }
 
-    void showBeneficiaries() {
+    void addBeneficiary(Beneficiary beneficiary) {
 
-        if (beneficiaries.isEmpty()) {
-            System.out.println("No beneficiaries found.");
-            return;
-        }
-
-        int number = 1;
-
-        for (Beneficiary beneficiary : beneficiaries) {
-
-            System.out.println("\nBeneficiary " + number);
-            System.out.println("-------------------------");
-
-            beneficiary.display();
-
-            number++;
-        }
+        if (beneficiary != null)
+            beneficiaries.add(beneficiary);
     }
 
     BankAccount searchByName(String name) {
+
+        if (name == null)
+            return null;
 
         for (BankAccount account : accounts.values()) {
 
@@ -287,45 +292,6 @@ public class BankSystem {
         }
 
         return null;
-    }
-
-    void showAll() {
-
-        if (sortedAccounts.isEmpty()) {
-            System.out.println("No accounts found.");
-            return;
-        }
-
-        System.out.printf(
-                "%-12s %-18s %-12s %s%n",
-                "Account No.",
-                "Customer",
-                "Type",
-                "Balance"
-        );
-
-        System.out.println(
-                "--------------------------------------------------------"
-        );
-
-        for (BankAccount account : sortedAccounts.values()) {
-
-            System.out.printf(
-                    "%-12d %-18s %-12s Rs. %.2f%n",
-                    account.accountNo,
-                    account.customer.name,
-                    account.type,
-                    account.balance
-            );
-        }
-
-        System.out.println(
-                "--------------------------------------------------------"
-        );
-
-        System.out.println(
-                "Total Accounts: " + totalAccounts()
-        );
     }
 
     boolean update(
@@ -394,9 +360,13 @@ public class BankSystem {
 
     Transaction searchTransaction(String id) {
 
+        if (id == null)
+            return null;
+
         for (BankAccount account : accounts.values()) {
 
-            for (Transaction transaction : account.transactions) {
+            for (Transaction transaction :
+                    account.transactions) {
 
                 if (transaction.id.equalsIgnoreCase(id))
                     return transaction;
@@ -412,9 +382,10 @@ public class BankSystem {
 
         for (BankAccount account : accounts.values()) {
 
-            for (Transaction transaction : account.transactions) {
+            for (Transaction transaction :
+                    account.transactions) {
 
-                if (transaction.status.equals("SUCCESS"))
+                if ("SUCCESS".equals(transaction.status))
                     count++;
             }
         }
@@ -428,9 +399,10 @@ public class BankSystem {
 
         for (BankAccount account : accounts.values()) {
 
-            for (Transaction transaction : account.transactions) {
+            for (Transaction transaction :
+                    account.transactions) {
 
-                if (transaction.status.equals("FAILED"))
+                if ("FAILED".equals(transaction.status))
                     count++;
             }
         }
@@ -444,111 +416,14 @@ public class BankSystem {
 
         for (BankAccount account : accounts.values()) {
 
-            for (Transaction transaction : account.transactions) {
+            for (Transaction transaction :
+                    account.transactions) {
 
-                if (transaction.status.equals("SUCCESS"))
+                if ("SUCCESS".equals(transaction.status))
                     total += transaction.amount;
             }
         }
 
         return total;
-    }
-
-    void showBankStatistics() {
-
-        System.out.println("\n========== BANK STATISTICS ==========");
-
-        System.out.println(
-                "Total Accounts       : " + totalAccounts()
-        );
-
-        System.out.printf(
-                "Total Balance        : Rs. %.2f%n",
-                totalBalance()
-        );
-
-        System.out.println(
-                "Total Transactions   : " + totalTransactions()
-        );
-
-        System.out.println(
-                "Successful           : " + successfulTransactions()
-        );
-
-        System.out.println(
-                "Failed               : " + failedTransactions()
-        );
-
-        System.out.printf(
-                "Transaction Volume   : Rs. %.2f%n",
-                totalTransactionVolume()
-        );
-
-        System.out.println(
-                "Savings Accounts     : " + countType("Savings")
-        );
-
-        System.out.println(
-                "Current Accounts     : " + countType("Current")
-        );
-
-        System.out.println(
-                "===================================="
-        );
-    }
-
-    void showStatement(int accountNo) {
-
-        BankAccount account = search(accountNo);
-
-        if (account == null) {
-
-            System.out.println("Account not found.");
-            return;
-        }
-
-        System.out.println("\n========================================");
-        System.out.println("          FINBANK STATEMENT");
-        System.out.println("========================================");
-
-        System.out.println(
-                "Account No. : " + account.accountNo
-        );
-
-        System.out.println(
-                "Customer    : " + account.customer.name
-        );
-
-        System.out.println(
-                "Phone       : " + account.customer.phone
-        );
-
-        System.out.println(
-                "Account Type: " + account.type
-        );
-
-        System.out.println("----------------------------------------");
-
-        if (account.transactions.isEmpty()) {
-
-            System.out.println("No transactions found.");
-
-        } else {
-
-            for (Transaction transaction :
-                    account.transactions) {
-
-                System.out.println(transaction);
-            }
-        }
-
-        System.out.println("----------------------------------------");
-
-        System.out.printf(
-                "Current Balance : Rs. %.2f%n",
-                account.balance
-        );
-
-        System.out.println("========================================");
     }
 }
