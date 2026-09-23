@@ -380,6 +380,7 @@ public class BankGUI extends JFrame {
         addNavItem(navMenuPanel, "Create Account", "＋", "Create Account");
         addNavItem(navMenuPanel, "Deposit", "↓", "Deposit");
         addNavItem(navMenuPanel, "Withdraw", "↑", "Withdraw");
+        addNavItem(navMenuPanel, "Transfer", "⇄", "Transfer");
         addNavItem(navMenuPanel, "Transactions", "📄", "Transactions");
 
         addSidebarSeparator(navMenuPanel);
@@ -509,6 +510,7 @@ public class BankGUI extends JFrame {
         mainContentCards.add(createCreateAccountPanel(), "Create Account");
         mainContentCards.add(createDepositPanel(), "Deposit");
         mainContentCards.add(createWithdrawPanel(), "Withdraw");
+        mainContentCards.add(createTransferPanel(), "Transfer");
         mainContentCards.add(createSearchPanel(), "Search");
         mainContentCards.add(createTransactionsPanel(), "Transactions");
         mainContentCards.add(createUpdatePanel(), "Update");
@@ -699,6 +701,10 @@ public class BankGUI extends JFrame {
         btnWithdraw.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btnWithdraw.addActionListener(e -> showScreen("Withdraw"));
 
+        ModernButton btnTransfer = new ModernButton("⇄  Transfer Money", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14);
+        btnTransfer.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btnTransfer.addActionListener(e -> showScreen("Transfer"));
+
         ModernButton btnSearch = new ModernButton("🔍  Search Account", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14);
         btnSearch.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btnSearch.addActionListener(e -> showScreen("Search"));
@@ -710,6 +716,7 @@ public class BankGUI extends JFrame {
         actionsGrid.add(btnNew);
         actionsGrid.add(btnDeposit);
         actionsGrid.add(btnWithdraw);
+        actionsGrid.add(btnTransfer);
         actionsGrid.add(btnSearch);
         actionsGrid.add(btnSummary);
 
@@ -1411,6 +1418,397 @@ public class BankGUI extends JFrame {
 
         actionsPanel.add(cancelBtn);
         actionsPanel.add(withdrawBtn);
+        rightCard.add(actionsPanel, BorderLayout.SOUTH);
+
+        columnsPanel.add(leftCard);
+        columnsPanel.add(rightCard);
+
+        panel.add(columnsPanel, BorderLayout.CENTER);
+        return panel;
+    }
+
+    // =========================================================================
+    // 6. TRANSFER MONEY SCREEN
+    // =========================================================================
+    private JPanel createTransferPanel() {
+        JPanel panel = new JPanel(new BorderLayout(0, 16));
+        panel.setOpaque(false);
+
+        panel.add(createHeaderTitleBlock(
+                "Transfer Money",
+                "Move funds between FinBank accounts or simulate an external bank transfer."
+        ), BorderLayout.NORTH);
+
+        JPanel columnsPanel = new JPanel(new GridLayout(1, 2, 22, 0));
+        columnsPanel.setOpaque(false);
+
+        // LEFT COLUMN: transfer information
+        GradientCard leftCard = new GradientCard(22, blueStart, blueEnd, blueBorder);
+        leftCard.setLayout(new BorderLayout(0, 16));
+        leftCard.setBorder(new EmptyBorder(26, 26, 26, 26));
+
+        JPanel leftTopPanel = new JPanel();
+        leftTopPanel.setOpaque(false);
+        leftTopPanel.setLayout(new BoxLayout(leftTopPanel, BoxLayout.Y_AXIS));
+
+        JPanel badgePill = new RoundedCard(
+                12,
+                isDarkMode ? new Color(25, 40, 55) : new Color(225, 239, 253),
+                isDarkMode ? new Color(45, 65, 88) : new Color(195, 220, 244)
+        );
+        badgePill.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 4));
+        badgePill.setMaximumSize(new Dimension(150, 26));
+        badgePill.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel badgeLbl = new JLabel("FUND TRANSFER");
+        badgeLbl.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        badgeLbl.setForeground(new Color(65, 125, 190));
+        badgePill.add(badgeLbl);
+
+        JLabel leftTitle = new JLabel("Send Money Securely");
+        leftTitle.setFont(new Font("Segoe UI", Font.BOLD, 22));
+        leftTitle.setForeground(textMain);
+        leftTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel leftDesc = new JLabel(
+                "<html>Choose the transfer type, verify the account details and complete the transaction.</html>"
+        );
+        leftDesc.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        leftDesc.setForeground(textMuted);
+        leftDesc.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        leftTopPanel.add(badgePill);
+        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 12)));
+        leftTopPanel.add(leftTitle);
+        leftTopPanel.add(Box.createRigidArea(new Dimension(0, 8)));
+        leftTopPanel.add(leftDesc);
+
+        leftCard.add(leftTopPanel, BorderLayout.NORTH);
+
+        JPanel infoPanel = new JPanel();
+        infoPanel.setOpaque(false);
+        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+
+        JLabel infoTitle = new JLabel("Transfer Types");
+        infoTitle.setFont(new Font("Segoe UI", Font.BOLD, 15));
+        infoTitle.setForeground(textMain);
+        infoTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        infoPanel.add(infoTitle);
+        infoPanel.add(Box.createRigidArea(new Dimension(0, 14)));
+        infoPanel.add(createFeatureRow("Internal Transfer", "Send money to another FinBank account."));
+        infoPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        infoPanel.add(createFeatureRow("External Transfer", "Simulate a transfer to another bank."));
+        infoPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+        infoPanel.add(createFeatureRow("Transaction Tracking", "Every successful transfer gets a unique ID."));
+
+        leftCard.add(infoPanel, BorderLayout.CENTER);
+
+        JPanel leftBottom = new RoundedCard(
+                14,
+                isDarkMode ? new Color(20, 30, 40) : Color.WHITE,
+                blueBorder
+        );
+        leftBottom.setLayout(new BorderLayout());
+        leftBottom.setBorder(new EmptyBorder(12, 14, 12, 14));
+
+        JLabel guard = new JLabel("Transfer Guard");
+        guard.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        guard.setForeground(textMain);
+
+        JLabel guardDesc = new JLabel("Insufficient balances and invalid accounts are blocked.");
+        guardDesc.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        guardDesc.setForeground(textMuted);
+
+        JPanel guardText = new JPanel(new GridLayout(2, 1, 0, 2));
+        guardText.setOpaque(false);
+        guardText.add(guard);
+        guardText.add(guardDesc);
+        leftBottom.add(guardText, BorderLayout.CENTER);
+        leftCard.add(leftBottom, BorderLayout.SOUTH);
+
+        // RIGHT COLUMN: transfer form
+        RoundedCard rightCard = new RoundedCard(22, cardBg, cardBorder);
+        rightCard.setLayout(new BorderLayout(0, 14));
+        rightCard.setBorder(new EmptyBorder(26, 28, 26, 28));
+
+        JPanel formTitleBlock = new JPanel(new GridLayout(2, 1, 0, 3));
+        formTitleBlock.setOpaque(false);
+
+        JLabel formHeading = new JLabel("Transfer Details");
+        formHeading.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        formHeading.setForeground(textMain);
+
+        JLabel formSubheading = new JLabel("Enter the required details below.");
+        formSubheading.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        formSubheading.setForeground(textMuted);
+
+        formTitleBlock.add(formHeading);
+        formTitleBlock.add(formSubheading);
+        rightCard.add(formTitleBlock, BorderLayout.NORTH);
+
+        JPanel formFieldsPanel = new JPanel();
+        formFieldsPanel.setOpaque(false);
+        formFieldsPanel.setLayout(new BoxLayout(formFieldsPanel, BoxLayout.Y_AXIS));
+
+        ModernTextField fromField = new ModernTextField(20);
+        ModernTextField toField = new ModernTextField(20);
+        ModernTextField amountField = new ModernTextField(20);
+        ModernTextField beneficiaryNameField = new ModernTextField(20);
+        ModernTextField bankNameField = new ModernTextField(20);
+        ModernTextField externalAccountField = new ModernTextField(20);
+        ModernTextField ifscField = new ModernTextField(20);
+
+        JComboBox<String> transferType = new JComboBox<>(new String[]{
+                "Internal Transfer",
+                "External Bank Transfer"
+        });
+        transferType.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        transferType.setBackground(inputBg);
+        transferType.setForeground(textMain);
+        transferType.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+        transferType.setPreferredSize(new Dimension(200, 42));
+        transferType.setAlignmentX(Component.LEFT_ALIGNMENT);
+        transferType.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(inputBorder, 1, true),
+                BorderFactory.createEmptyBorder(2, 6, 2, 6)
+        ));
+
+        formFieldsPanel.add(createFormLabel("Transfer Type"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(transferType);
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+
+        formFieldsPanel.add(createFormLabel("From Account"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(fromField);
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+
+        formFieldsPanel.add(createFormLabel("To Account"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(toField);
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+
+        JPanel externalFields = new JPanel();
+        externalFields.setOpaque(false);
+        externalFields.setLayout(new BoxLayout(externalFields, BoxLayout.Y_AXIS));
+        externalFields.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        externalFields.add(createFormLabel("Beneficiary Name"));
+        externalFields.add(Box.createRigidArea(new Dimension(0, 4)));
+        externalFields.add(beneficiaryNameField);
+        externalFields.add(Box.createRigidArea(new Dimension(0, 8)));
+
+        externalFields.add(createFormLabel("Bank Name"));
+        externalFields.add(Box.createRigidArea(new Dimension(0, 4)));
+        externalFields.add(bankNameField);
+        externalFields.add(Box.createRigidArea(new Dimension(0, 8)));
+
+        externalFields.add(createFormLabel("Account Number"));
+        externalFields.add(Box.createRigidArea(new Dimension(0, 4)));
+        externalFields.add(externalAccountField);
+        externalFields.add(Box.createRigidArea(new Dimension(0, 8)));
+
+        externalFields.add(createFormLabel("IFSC Code"));
+        externalFields.add(Box.createRigidArea(new Dimension(0, 4)));
+        externalFields.add(ifscField);
+
+        externalFields.setVisible(false);
+        formFieldsPanel.add(externalFields);
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 10)));
+
+        formFieldsPanel.add(createFormLabel("Amount (Rs.)"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(amountField);
+        formFieldsPanel.add(Box.createVerticalGlue());
+
+        rightCard.add(formFieldsPanel, BorderLayout.CENTER);
+
+        transferType.addActionListener(e -> {
+            boolean external = transferType.getSelectedIndex() == 1;
+            toField.setVisible(!external);
+            externalFields.setVisible(external);
+            rightCard.revalidate();
+            rightCard.repaint();
+        });
+
+        JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        actionsPanel.setOpaque(false);
+
+        ModernButton cancelBtn = new ModernButton(
+                "Cancel", secondaryBtnBg, secondaryBtnHover, secondaryBtnText, 14
+        );
+        cancelBtn.addActionListener(e -> showScreen("Dashboard"));
+
+        ModernButton transferBtn = new ModernButton(
+                "Confirm Transfer", PRIMARY_CORAL, PRIMARY_CORAL_HOVER, Color.WHITE, 14
+        );
+        transferBtn.setPreferredSize(new Dimension(180, 44));
+
+        transferBtn.addActionListener(e -> {
+            try {
+                int from = Integer.parseInt(fromField.getText().trim());
+                double amount = Double.parseDouble(amountField.getText().trim());
+
+                if (amount <= 0) {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "Transfer amount must be positive.",
+                            "Validation Error",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                    return;
+                }
+
+                BankAccount sender = bank.search(from);
+                if (sender == null) {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "Source account #" + from + " does not exist.",
+                            "Account Not Found",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                    return;
+                }
+
+                if (!sender.canWithdraw(amount)) {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            String.format(
+                                    "Insufficient Funds!\n\nAvailable: Rs. %,.2f\nRequested: Rs. %,.2f",
+                                    sender.balance,
+                                    amount
+                            ),
+                            "Transaction Denied",
+                            JOptionPane.WARNING_MESSAGE
+                    );
+                    return;
+                }
+
+                if (transferType.getSelectedIndex() == 0) {
+                    int to = Integer.parseInt(toField.getText().trim());
+
+                    if (from == to) {
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "Source and destination accounts cannot be the same.",
+                                "Validation Error",
+                                JOptionPane.ERROR_MESSAGE
+                        );
+                        return;
+                    }
+
+                    BankAccount receiver = bank.search(to);
+                    if (receiver == null) {
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "Destination account #" + to + " does not exist.",
+                                "Account Not Found",
+                                JOptionPane.ERROR_MESSAGE
+                        );
+                        return;
+                    }
+
+                    if (!bank.transfer(from, to, amount)) {
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "Transfer could not be completed.",
+                                "Transaction Failed",
+                                JOptionPane.ERROR_MESSAGE
+                        );
+                        return;
+                    }
+
+                    String id = sender.transactions.getLast().id;
+
+                    JOptionPane.showMessageDialog(
+                            this,
+                            String.format(
+                                    "Transfer Successful!\n\nTransaction ID: %s\nFrom: #%d\nTo: #%d\nAmount: Rs. %,.2f\nRemaining Balance: Rs. %,.2f",
+                                    id,
+                                    from,
+                                    to,
+                                    amount,
+                                    sender.balance
+                            ),
+                            "Transaction Confirmed",
+                            JOptionPane.INFORMATION_MESSAGE
+                    );
+                } else {
+                    String beneficiaryName = beneficiaryNameField.getText().trim();
+                    String bankName = bankNameField.getText().trim();
+                    String externalAccount = externalAccountField.getText().trim();
+                    String ifsc = ifscField.getText().trim();
+
+                    if (beneficiaryName.isEmpty() || bankName.isEmpty()
+                            || externalAccount.isEmpty() || ifsc.isEmpty()) {
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "Please enter all beneficiary details.",
+                                "Validation Error",
+                                JOptionPane.ERROR_MESSAGE
+                        );
+                        return;
+                    }
+
+                    Beneficiary beneficiary = new Beneficiary(
+                            beneficiaryName,
+                            bankName,
+                            externalAccount,
+                            ifsc
+                    );
+
+                    if (!bank.externalTransfer(from, beneficiary, amount)) {
+                        JOptionPane.showMessageDialog(
+                                this,
+                                "External transfer could not be completed.",
+                                "Transaction Failed",
+                                JOptionPane.ERROR_MESSAGE
+                        );
+                        return;
+                    }
+
+                    bank.addBeneficiary(beneficiary);
+                    String id = sender.transactions.getLast().id;
+
+                    JOptionPane.showMessageDialog(
+                            this,
+                            String.format(
+                                    "External Transfer Successful!\n\nTransaction ID: %s\nBeneficiary: %s\nBank: %s\nAmount: Rs. %,.2f\nRemaining Balance: Rs. %,.2f",
+                                    id,
+                                    beneficiaryName,
+                                    bankName,
+                                    amount,
+                                    sender.balance
+                            ),
+                            "Transaction Confirmed",
+                            JOptionPane.INFORMATION_MESSAGE
+                    );
+                }
+
+                fromField.setText("");
+                toField.setText("");
+                amountField.setText("");
+                beneficiaryNameField.setText("");
+                bankNameField.setText("");
+                externalAccountField.setText("");
+                ifscField.setText("");
+
+                refreshAll();
+                showScreen("Transactions");
+
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Please enter valid numeric account numbers and amount.",
+                        "Input Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+            }
+        });
+
+        actionsPanel.add(cancelBtn);
+        actionsPanel.add(transferBtn);
         rightCard.add(actionsPanel, BorderLayout.SOUTH);
 
         columnsPanel.add(leftCard);
