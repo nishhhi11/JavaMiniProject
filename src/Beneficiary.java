@@ -1,4 +1,6 @@
-public class Beneficiary {
+import java.io.Serializable;
+
+public class Beneficiary implements Serializable {
 
     String name;
     String bankName;

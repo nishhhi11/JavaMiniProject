@@ -1,51 +1,35 @@
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.TreeMap;
-import java.util.LinkedList;
 
-public class BankSystem {
+public class BankSystem implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
+    // account storage
     HashMap<Integer, BankAccount> accounts = new HashMap<>();
 
-    TreeMap<Integer, BankAccount> sortedAccounts =
-            new TreeMap<>();
+    // sorted account view
+    TreeMap<Integer, BankAccount> sortedAccounts = new TreeMap<>();
 
-    LinkedList<Beneficiary> beneficiaries =
-            new LinkedList<>();
+    // saved beneficiaries
+    ArrayList<Beneficiary> beneficiaries = new ArrayList<>();
 
-    String[] accountTypes = {
-            "Savings",
-            "Current"
-    };
-
-    int transactionNumber = 10001;
+    // transaction counter
+    private int transactionCounter = 1001;
 
     void addAccount(BankAccount account) {
 
         accounts.put(account.accountNo, account);
         sortedAccounts.put(account.accountNo, account);
+
+        DataManager.save(this);
     }
 
     BankAccount search(int accountNo) {
 
         return accounts.get(accountNo);
-    }
-
-    BankAccount login(int accountNo, String pin) {
-
-        BankAccount account = search(accountNo);
-
-        if (account == null)
-            return null;
-
-        if (!account.customer.verifyPin(pin))
-            return null;
-
-        return account;
-    }
-
-    String transactionId() {
-
-        return "TXN" + transactionNumber++;
     }
 
     boolean deposit(int accountNo, double amount) {
@@ -55,27 +39,12 @@ public class BankSystem {
         if (account == null)
             return false;
 
-        if (amount <= 0) {
+        boolean success = account.deposit(amount, transactionId());
 
-            account.transactions.add(
-                    new Transaction(
-                            transactionId(),
-                            "Deposit",
-                            amount,
-                            "External",
-                            String.valueOf(accountNo),
-                            "FAILED",
-                            "Invalid amount"
-                    )
-            );
+        if (success)
+            DataManager.save(this);
 
-            return false;
-        }
-
-        return account.deposit(
-                amount,
-                transactionId()
-        );
+        return success;
     }
 
     boolean withdraw(int accountNo, double amount) {
@@ -85,98 +54,24 @@ public class BankSystem {
         if (account == null)
             return false;
 
-        if (amount <= 0) {
+        boolean success = account.withdraw(amount, transactionId());
 
-            account.transactions.add(
-                    new Transaction(
-                            transactionId(),
-                            "Withdrawal",
-                            amount,
-                            String.valueOf(accountNo),
-                            "External",
-                            "FAILED",
-                            "Invalid amount"
-                    )
-            );
+        if (success)
+            DataManager.save(this);
 
-            return false;
-        }
-
-        if (amount > account.balance) {
-
-            account.transactions.add(
-                    new Transaction(
-                            transactionId(),
-                            "Withdrawal",
-                            amount,
-                            String.valueOf(accountNo),
-                            "External",
-                            "FAILED",
-                            "Insufficient balance"
-                    )
-            );
-
-            return false;
-        }
-
-        return account.withdraw(
-                amount,
-                transactionId()
-        );
+        return success;
     }
 
-    boolean transfer(
-            int from,
-            int to,
-            double amount) {
+    boolean transfer(int from, int to, double amount) {
 
         BankAccount sender = search(from);
         BankAccount receiver = search(to);
 
-        if (sender == null || receiver == null)
+        if (sender == null || receiver == null || from == to)
             return false;
 
-        if (from == to) {
-
-            addFailedTransaction(
-                    sender,
-                    "Transfer",
-                    amount,
-                    String.valueOf(from),
-                    String.valueOf(to),
-                    "Cannot transfer to same account"
-            );
-
+        if (!sender.canWithdraw(amount))
             return false;
-        }
-
-        if (amount <= 0) {
-
-            addFailedTransaction(
-                    sender,
-                    "Transfer",
-                    amount,
-                    String.valueOf(from),
-                    String.valueOf(to),
-                    "Invalid amount"
-            );
-
-            return false;
-        }
-
-        if (!sender.canWithdraw(amount)) {
-
-            addFailedTransaction(
-                    sender,
-                    "Transfer",
-                    amount,
-                    String.valueOf(from),
-                    String.valueOf(to),
-                    "Insufficient balance"
-            );
-
-            return false;
-        }
 
         String id = transactionId();
 
@@ -205,46 +100,24 @@ public class BankSystem {
                 )
         );
 
+        DataManager.save(this);
+
         return true;
     }
 
     boolean externalTransfer(
             int from,
             Beneficiary beneficiary,
-            double amount) {
+            double amount
+    ) {
 
         BankAccount sender = search(from);
 
         if (sender == null || beneficiary == null)
             return false;
 
-        if (amount <= 0) {
-
-            addFailedTransaction(
-                    sender,
-                    "External Transfer",
-                    amount,
-                    String.valueOf(from),
-                    beneficiary.bankName,
-                    "Invalid amount"
-            );
-
+        if (!sender.canWithdraw(amount))
             return false;
-        }
-
-        if (!sender.canWithdraw(amount)) {
-
-            addFailedTransaction(
-                    sender,
-                    "External Transfer",
-                    amount,
-                    String.valueOf(from),
-                    beneficiary.bankName,
-                    "Insufficient balance"
-            );
-
-            return false;
-        }
 
         String id = transactionId();
 
@@ -256,61 +129,24 @@ public class BankSystem {
                         "External Transfer",
                         amount,
                         String.valueOf(from),
-                        beneficiary.bankName
-                                + " - "
-                                + beneficiary.accountNumber,
+                        beneficiary.accountNumber,
                         "SUCCESS"
                 )
         );
 
+        DataManager.save(this);
+
         return true;
-    }
-
-    private void addFailedTransaction(
-            BankAccount account,
-            String type,
-            double amount,
-            String from,
-            String to,
-            String reason) {
-
-        account.transactions.add(
-                new Transaction(
-                        transactionId(),
-                        type,
-                        amount,
-                        from,
-                        to,
-                        "FAILED",
-                        reason
-                )
-        );
     }
 
     void addBeneficiary(Beneficiary beneficiary) {
 
-        if (beneficiary != null)
-            beneficiaries.add(beneficiary);
+        beneficiaries.add(beneficiary);
+
+        DataManager.save(this);
     }
 
-    BankAccount searchByName(String name) {
-
-        if (name == null)
-            return null;
-
-        for (BankAccount account : accounts.values()) {
-
-            if (account.customer.name.equalsIgnoreCase(name))
-                return account;
-        }
-
-        return null;
-    }
-
-    boolean update(
-            int accountNo,
-            String name,
-            String phone) {
+    boolean update(int accountNo, String name, String phone) {
 
         BankAccount account = search(accountNo);
 
@@ -319,16 +155,21 @@ public class BankSystem {
 
         account.customer.update(name, phone);
 
+        DataManager.save(this);
+
         return true;
     }
 
     boolean delete(int accountNo) {
 
-        if (!accounts.containsKey(accountNo))
+        BankAccount account = accounts.remove(accountNo);
+
+        if (account == null)
             return false;
 
-        accounts.remove(accountNo);
         sortedAccounts.remove(accountNo);
+
+        DataManager.save(this);
 
         return true;
     }
@@ -338,105 +179,32 @@ public class BankSystem {
         return accounts.size();
     }
 
-    int totalTransactions() {
-
-        int total = 0;
-
-        for (BankAccount account : accounts.values())
-            total += account.transactions.size();
-
-        return total;
-    }
-
     double totalBalance() {
 
         double total = 0;
 
-        for (BankAccount account : accounts.values())
+        for (BankAccount account : accounts.values()) {
             total += account.balance;
+        }
 
         return total;
     }
 
-    int countType(String type) {
+    String transactionId() {
 
-        int count = 0;
-
-        for (BankAccount account : accounts.values()) {
-
-            if (account.type.equalsIgnoreCase(type))
-                count++;
-        }
-
-        return count;
+        return "TXN" + transactionCounter++;
     }
 
-    Transaction searchTransaction(String id) {
+    BankAccount login(int accountNo, String pin) {
 
-        if (id == null)
+        BankAccount account = search(accountNo);
+
+        if (account == null)
             return null;
 
-        for (BankAccount account : accounts.values()) {
+        if (!account.customer.verifyPin(pin))
+            return null;
 
-            for (Transaction transaction :
-                    account.transactions) {
-
-                if (transaction.id.equalsIgnoreCase(id))
-                    return transaction;
-            }
-        }
-
-        return null;
-    }
-
-    int successfulTransactions() {
-
-        int count = 0;
-
-        for (BankAccount account : accounts.values()) {
-
-            for (Transaction transaction :
-                    account.transactions) {
-
-                if ("SUCCESS".equals(transaction.status))
-                    count++;
-            }
-        }
-
-        return count;
-    }
-
-    int failedTransactions() {
-
-        int count = 0;
-
-        for (BankAccount account : accounts.values()) {
-
-            for (Transaction transaction :
-                    account.transactions) {
-
-                if ("FAILED".equals(transaction.status))
-                    count++;
-            }
-        }
-
-        return count;
-    }
-
-    double totalTransactionVolume() {
-
-        double total = 0;
-
-        for (BankAccount account : accounts.values()) {
-
-            for (Transaction transaction :
-                    account.transactions) {
-
-                if ("SUCCESS".equals(transaction.status))
-                    total += transaction.amount;
-            }
-        }
-
-        return total;
+        return account;
     }
 }

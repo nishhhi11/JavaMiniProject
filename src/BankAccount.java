@@ -1,6 +1,7 @@
+import java.io.Serializable;
 import java.util.LinkedList;
 
-public class BankAccount {
+public class BankAccount implements Serializable {
 
     int accountNo;
     Customer customer;

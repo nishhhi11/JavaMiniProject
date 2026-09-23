@@ -23,7 +23,7 @@ public class BankGUI extends JFrame {
     // backend system reference
     BankSystem bank;
 
-    // currently logged-in customer account
+    // currently logged-in account
     private BankAccount loggedInAccount;
 
     // next account number to auto-assign
@@ -147,9 +147,15 @@ public class BankGUI extends JFrame {
     public BankGUI() {
         applyThemeColors();
 
-        // initialize existing backend with starter accounts
-        bank = new BankSystem();
-        addSampleAccounts();
+        // load saved bank data
+        bank = DataManager.load();
+
+        // create starter data on first run
+        if (bank == null) {
+            bank = new BankSystem();
+            addSampleAccounts();
+            DataManager.save(bank);
+        }
 
         // frame configuration
         setTitle("FinBank - Account Management System");
@@ -163,7 +169,7 @@ public class BankGUI extends JFrame {
         // build sidebar and main content panels
         buildUI();
 
-        // initial screen and customer login
+        // initial screen and data refresh
         showScreen("Dashboard");
     }
 
@@ -1010,7 +1016,6 @@ public class BankGUI extends JFrame {
         formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
         formFieldsPanel.add(phoneField);
         formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 12)));
-
         formFieldsPanel.add(createFormLabel("4-Digit PIN"));
         formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
         formFieldsPanel.add(pinField);
@@ -1050,17 +1055,17 @@ public class BankGUI extends JFrame {
                 return;
             }
 
-            try {
-                if (!pin.matches("\\d{4}")) {
-                    JOptionPane.showMessageDialog(
-                            this,
-                            "PIN must contain exactly 4 digits.",
-                            "Invalid PIN",
-                            JOptionPane.ERROR_MESSAGE
-                    );
-                    return;
-                }
+            if (!pin.matches("\\d{4}")) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "PIN must contain exactly 4 digits.",
+                        "Invalid PIN",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
 
+            try {
                 double initialDeposit = Double.parseDouble(depStr);
                 if (initialDeposit < 0) {
                     JOptionPane.showMessageDialog(this, "Initial deposit cannot be negative.", "Validation Error", JOptionPane.ERROR_MESSAGE);
@@ -3979,15 +3984,10 @@ public class BankGUI extends JFrame {
         }
     }
 
-    // main launcher
+    // login dialog for account access
     private void showLoginScreen() {
 
-        JDialog loginDialog = new JDialog(
-                this,
-                "FinBank Login",
-                true
-        );
-
+        JDialog loginDialog = new JDialog(this, "FinBank Login", true);
         loginDialog.setSize(420, 320);
         loginDialog.setLocationRelativeTo(this);
         loginDialog.setResizable(false);
@@ -3995,6 +3995,7 @@ public class BankGUI extends JFrame {
         JPanel panel = new JPanel();
         panel.setBorder(new EmptyBorder(30, 35, 30, 35));
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBackground(cardBg);
 
         JLabel title = new JLabel("Welcome to FinBank");
         title.setFont(new Font("Segoe UI", Font.BOLD, 24));
@@ -4012,9 +4013,6 @@ public class BankGUI extends JFrame {
         accountField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
         pinField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
 
-        JLabel accountLabel = createFormLabel("Account Number");
-        JLabel pinLabel = createFormLabel("4-Digit PIN");
-
         ModernButton loginButton = new ModernButton(
                 "Login",
                 PRIMARY_CORAL,
@@ -4022,47 +4020,34 @@ public class BankGUI extends JFrame {
                 Color.WHITE,
                 14
         );
-
         loginButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
 
         loginButton.addActionListener(e -> {
 
             try {
 
-                int accountNo = Integer.parseInt(
-                        accountField.getText().trim()
-                );
-
-                String pin = new String(
-                        pinField.getPassword()
-                );
+                int accountNo = Integer.parseInt(accountField.getText().trim());
+                String pin = new String(pinField.getPassword());
 
                 if (!pin.matches("\\d{4}")) {
-
                     JOptionPane.showMessageDialog(
                             loginDialog,
                             "PIN must contain exactly 4 digits.",
                             "Invalid PIN",
                             JOptionPane.WARNING_MESSAGE
                     );
-
                     return;
                 }
 
-                BankAccount account = bank.login(
-                        accountNo,
-                        pin
-                );
+                BankAccount account = bank.login(accountNo, pin);
 
                 if (account == null) {
-
                     JOptionPane.showMessageDialog(
                             loginDialog,
                             "Invalid account number or PIN.",
                             "Login Failed",
                             JOptionPane.ERROR_MESSAGE
                     );
-
                     pinField.setText("");
                     return;
                 }
@@ -4087,13 +4072,13 @@ public class BankGUI extends JFrame {
         panel.add(subtitle);
         panel.add(Box.createRigidArea(new Dimension(0, 22)));
 
-        panel.add(accountLabel);
+        panel.add(createFormLabel("Account Number"));
         panel.add(Box.createRigidArea(new Dimension(0, 4)));
         panel.add(accountField);
 
         panel.add(Box.createRigidArea(new Dimension(0, 12)));
 
-        panel.add(pinLabel);
+        panel.add(createFormLabel("4-Digit PIN"));
         panel.add(Box.createRigidArea(new Dimension(0, 4)));
         panel.add(pinField);
 
@@ -4104,6 +4089,7 @@ public class BankGUI extends JFrame {
         loginDialog.setVisible(true);
     }
 
+    // main launcher
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             BankGUI gui = new BankGUI();
@@ -4112,4 +4098,3 @@ public class BankGUI extends JFrame {
         });
     }
 }
-
