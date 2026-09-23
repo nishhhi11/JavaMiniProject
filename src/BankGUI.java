@@ -23,6 +23,9 @@ public class BankGUI extends JFrame {
     // backend system reference
     BankSystem bank;
 
+    // currently logged-in customer account
+    private BankAccount loggedInAccount;
+
     // next account number to auto-assign
     private int nextAccountNo = 1001;
 
@@ -160,7 +163,7 @@ public class BankGUI extends JFrame {
         // build sidebar and main content panels
         buildUI();
 
-        // initial screen and data refresh
+        // initial screen and customer login
         showScreen("Dashboard");
     }
 
@@ -178,9 +181,9 @@ public class BankGUI extends JFrame {
 
     // load sample accounts with initial transaction records
     private void addSampleAccounts() {
-        Customer c1 = new Customer(1001, "Nishi Sharma", "9876501234");
-        Customer c2 = new Customer(1002, "Riya Patel", "9876543210");
-        Customer c3 = new Customer(1003, "Aman Verma", "9811223344");
+        Customer c1 = new Customer(1001, "Nishi Sharma", "9876501234", "1234");
+        Customer c2 = new Customer(1002, "Riya Patel", "9876543210", "2345");
+        Customer c3 = new Customer(1003, "Aman Verma", "9811223344", "3456");
 
         BankAccount a1 = new BankAccount(1001, c1, "Savings", 15000);
         BankAccount a2 = new BankAccount(1002, c2, "Current", 28500);
@@ -948,6 +951,7 @@ public class BankGUI extends JFrame {
 
         ModernTextField nameField = new ModernTextField(20);
         ModernTextField phoneField = new ModernTextField(20);
+        ModernTextField pinField = new ModernTextField(20);
 
         String[] accountTypes = {"Savings", "Current"};
         JComboBox<String> typeCombo = new JComboBox<>(accountTypes);
@@ -1007,6 +1011,11 @@ public class BankGUI extends JFrame {
         formFieldsPanel.add(phoneField);
         formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 12)));
 
+        formFieldsPanel.add(createFormLabel("4-Digit PIN"));
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
+        formFieldsPanel.add(pinField);
+        formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 12)));
+
         formFieldsPanel.add(createFormLabel("Account Type"));
         formFieldsPanel.add(Box.createRigidArea(new Dimension(0, 4)));
         formFieldsPanel.add(typeCombo);
@@ -1032,15 +1041,26 @@ public class BankGUI extends JFrame {
         createAccountBtn.addActionListener(e -> {
             String name = nameField.getText().trim();
             String phone = phoneField.getText().trim();
+            String pin = pinField.getText().trim();
             String type = (String) typeCombo.getSelectedItem();
             String depStr = depositField.getText().trim();
 
-            if (name.isEmpty() || phone.isEmpty() || depStr.isEmpty()) {
+            if (name.isEmpty() || phone.isEmpty() || pin.isEmpty() || depStr.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Please fill in all customer fields.", "Validation Error", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
             try {
+                if (!pin.matches("\\d{4}")) {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "PIN must contain exactly 4 digits.",
+                            "Invalid PIN",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                    return;
+                }
+
                 double initialDeposit = Double.parseDouble(depStr);
                 if (initialDeposit < 0) {
                     JOptionPane.showMessageDialog(this, "Initial deposit cannot be negative.", "Validation Error", JOptionPane.ERROR_MESSAGE);
@@ -1048,7 +1068,7 @@ public class BankGUI extends JFrame {
                 }
 
                 int assignedAccNo = nextAccountNo++;
-                Customer customer = new Customer(assignedAccNo, name, phone);
+                Customer customer = new Customer(assignedAccNo, name, phone, pin);
                 BankAccount newAccount = new BankAccount(assignedAccNo, customer, type, initialDeposit);
 
                 if (initialDeposit > 0) {
@@ -1074,6 +1094,7 @@ public class BankGUI extends JFrame {
 
                 nameField.setText("");
                 phoneField.setText("");
+                pinField.setText("");
                 depositField.setText("");
                 typeCombo.setSelectedIndex(0);
 
@@ -3959,10 +3980,136 @@ public class BankGUI extends JFrame {
     }
 
     // main launcher
+    private void showLoginScreen() {
+
+        JDialog loginDialog = new JDialog(
+                this,
+                "FinBank Login",
+                true
+        );
+
+        loginDialog.setSize(420, 320);
+        loginDialog.setLocationRelativeTo(this);
+        loginDialog.setResizable(false);
+
+        JPanel panel = new JPanel();
+        panel.setBorder(new EmptyBorder(30, 35, 30, 35));
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+
+        JLabel title = new JLabel("Welcome to FinBank");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        title.setForeground(textMain);
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel subtitle = new JLabel("Login to access your account");
+        subtitle.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        subtitle.setForeground(textMuted);
+        subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        ModernTextField accountField = new ModernTextField(20);
+        JPasswordField pinField = new JPasswordField();
+
+        accountField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+        pinField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+
+        JLabel accountLabel = createFormLabel("Account Number");
+        JLabel pinLabel = createFormLabel("4-Digit PIN");
+
+        ModernButton loginButton = new ModernButton(
+                "Login",
+                PRIMARY_CORAL,
+                PRIMARY_CORAL_HOVER,
+                Color.WHITE,
+                14
+        );
+
+        loginButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
+
+        loginButton.addActionListener(e -> {
+
+            try {
+
+                int accountNo = Integer.parseInt(
+                        accountField.getText().trim()
+                );
+
+                String pin = new String(
+                        pinField.getPassword()
+                );
+
+                if (!pin.matches("\\d{4}")) {
+
+                    JOptionPane.showMessageDialog(
+                            loginDialog,
+                            "PIN must contain exactly 4 digits.",
+                            "Invalid PIN",
+                            JOptionPane.WARNING_MESSAGE
+                    );
+
+                    return;
+                }
+
+                BankAccount account = bank.login(
+                        accountNo,
+                        pin
+                );
+
+                if (account == null) {
+
+                    JOptionPane.showMessageDialog(
+                            loginDialog,
+                            "Invalid account number or PIN.",
+                            "Login Failed",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+
+                    pinField.setText("");
+                    return;
+                }
+
+                loggedInAccount = account;
+                loginDialog.dispose();
+                showScreen("Dashboard");
+
+            } catch (NumberFormatException ex) {
+
+                JOptionPane.showMessageDialog(
+                        loginDialog,
+                        "Enter a valid account number.",
+                        "Invalid Input",
+                        JOptionPane.WARNING_MESSAGE
+                );
+            }
+        });
+
+        panel.add(title);
+        panel.add(Box.createRigidArea(new Dimension(0, 6)));
+        panel.add(subtitle);
+        panel.add(Box.createRigidArea(new Dimension(0, 22)));
+
+        panel.add(accountLabel);
+        panel.add(Box.createRigidArea(new Dimension(0, 4)));
+        panel.add(accountField);
+
+        panel.add(Box.createRigidArea(new Dimension(0, 12)));
+
+        panel.add(pinLabel);
+        panel.add(Box.createRigidArea(new Dimension(0, 4)));
+        panel.add(pinField);
+
+        panel.add(Box.createRigidArea(new Dimension(0, 18)));
+        panel.add(loginButton);
+
+        loginDialog.add(panel);
+        loginDialog.setVisible(true);
+    }
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             BankGUI gui = new BankGUI();
             gui.setVisible(true);
+            gui.showLoginScreen();
         });
     }
 }
+

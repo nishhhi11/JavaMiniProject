@@ -30,6 +30,19 @@ public class BankSystem {
         return accounts.get(accountNo);
     }
 
+    BankAccount login(int accountNo, String pin) {
+
+        BankAccount account = search(accountNo);
+
+        if (account == null)
+            return null;
+
+        if (!account.customer.verifyPin(pin))
+            return null;
+
+        return account;
+    }
+
     String transactionId() {
 
         return "TXN" + transactionNumber++;
