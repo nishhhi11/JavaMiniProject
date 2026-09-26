@@ -173,6 +173,14 @@ public class BankGUI extends JFrame {
             bank = new BankSystem();
             addSampleAccounts();
             DataManager.save(bank);
+        } else {
+            // Continue account numbering from the highest existing account number.
+            // This prevents the application from starting again at 1001 after
+            // previously saved accounts are loaded.
+            nextAccountNo = bank.accounts.values().stream()
+                    .mapToInt(account -> account.accountNo)
+                    .max()
+                    .orElse(1000) + 1;
         }
 
         // frame configuration

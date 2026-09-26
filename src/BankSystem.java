@@ -7,16 +7,12 @@ public class BankSystem implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    // account storage
     HashMap<Integer, BankAccount> accounts = new HashMap<>();
 
-    // sorted account view
     TreeMap<Integer, BankAccount> sortedAccounts = new TreeMap<>();
 
-    // saved beneficiaries
     ArrayList<Beneficiary> beneficiaries = new ArrayList<>();
 
-    // transaction counter
     private int transactionCounter = 1001;
 
     void addAccount(BankAccount account) {
